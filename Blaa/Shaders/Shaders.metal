@@ -38,10 +38,10 @@ vertex void unprojectVertex(uint vertexID [[vertex_id]],
                             constant PointCloudUniforms &uniforms [[buffer(kPointCloudUniforms)]],
                             device ParticleUniforms *particleUniforms [[buffer(kParticleUniforms)]],
                             constant float2 *gridPoints [[buffer(kGridPoints)]],
-                            texture2d<float, access::sample> capturedImageTextureY [[texture(kTextureY)]],
-                            texture2d<float, access::sample> capturedImageTextureCbCr [[texture(kTextureCbCr)]],
-                            texture2d<float, access::sample> depthTexture [[texture(kTextureDepth)]],
-                            texture2d<unsigned int, access::sample> confidenceTexture [[texture(kTextureConfidence)]]) {
+//                            texture2d<float, access::sample> capturedImageTextureY [[texture(kTextureY)]],
+//                            texture2d<float, access::sample> capturedImageTextureCbCr [[texture(kTextureCbCr)]],
+                            texture2d<float, access::sample> depthTexture [[texture(0)]],
+                            texture2d<unsigned int, access::sample> confidenceTexture [[texture(1)]]) {
     
     const auto gridPoint = gridPoints[vertexID];
     const auto currentPointIndex = (uniforms.pointCloudCurrentIndex + vertexID) % uniforms.maxPoints;
@@ -50,18 +50,18 @@ vertex void unprojectVertex(uint vertexID [[vertex_id]],
     const auto depth = depthTexture.sample(colorSampler, texCoord).r;
     // With a 2D point plus depth, we can now get its 3D position
     const auto position = worldPoint(gridPoint, depth, uniforms.cameraIntrinsicsInversed, uniforms.localToWorld);
-    const float3 pointNormal = normalize((position - uniforms.cameraPosition).xyz);
+    const auto pointNormal = normalize((position - uniforms.cameraPosition).xyz);
     
-    // Sample Y and CbCr textures to get the YCbCr color at the given texture coordinate
-    const auto ycbcr = float4(capturedImageTextureY.sample(colorSampler, texCoord).r, capturedImageTextureCbCr.sample(colorSampler, texCoord.xy).rg, 1);
-    const auto sampledColor = (yCbCrToRGB * ycbcr).rgb;
+//    // Sample Y and CbCr textures to get the YCbCr color at the given texture coordinate
+//    const auto ycbcr = float4(capturedImageTextureY.sample(colorSampler, texCoord).r, capturedImageTextureCbCr.sample(colorSampler, texCoord.xy).rg, 1);
+//    const auto sampledColor = (yCbCrToRGB * ycbcr).rgb;
     // Sample the confidence map to get the confidence value
     const auto confidence = confidenceTexture.sample(colorSampler, texCoord).r;
     
     // Write the data to the buffer
     particleUniforms[currentPointIndex].position = position.xyz;
     particleUniforms[currentPointIndex].normal = pointNormal;
-    particleUniforms[currentPointIndex].color = sampledColor;
+//    particleUniforms[currentPointIndex].color = sampledColor;
     particleUniforms[currentPointIndex].confidence = confidence;
 }
 
@@ -104,7 +104,7 @@ vertex ParticleVertexOut particleVertex(uint vertexID [[vertex_id]],
     const auto particleData = particleUniforms[vertexID];
     const auto position = particleData.position;
     const auto confidence = particleData.confidence;
-    const auto sampledColor = particleData.color;
+//    const auto sampledColor = particleData.color;
     const auto visibility = confidence >= uniforms.confidenceThreshold;
     
     // animate and project the point
@@ -116,7 +116,7 @@ vertex ParticleVertexOut particleVertex(uint vertexID [[vertex_id]],
     ParticleVertexOut out;
     out.position = projectedPosition;
     out.pointSize = pointSize;
-    out.color = float4(sampledColor, visibility);
+    out.color = float4(1.0, 1.0, 1.0, visibility);
     
     return out;
 }
@@ -134,7 +134,7 @@ vertex ParticleVertexOut particleVertexLimited(uint vertexID [[vertex_id]],
     const auto particleData = particleUniforms[vertexID];
     const auto position = particleData.position;
     const auto confidence = particleData.confidence;
-    const auto sampledColor = particleData.color;
+//    const auto sampledColor = particleData.color;
     const bool visibility = confidence >= uniforms.confidenceThreshold &&
     lessThan(float3 (boundingBox.xMin, boundingBox.yMin, boundingBox.zMin), position) &&
     lessThan(position, float3(boundingBox.xMax, boundingBox.yMax, boundingBox.zMax));
@@ -148,7 +148,7 @@ vertex ParticleVertexOut particleVertexLimited(uint vertexID [[vertex_id]],
     ParticleVertexOut out;
     out.position = projectedPosition;
     out.pointSize = pointSize;
-    out.color = float4(sampledColor, visibility);
+    out.color = float4(1.0, 1.0, 1.0, visibility);
     
     return out;
 }

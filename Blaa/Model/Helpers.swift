@@ -166,3 +166,7 @@ extension simd_float4x4 : Codable {
         try container.encode([columns.0, columns.1, columns.2, columns.3])
     }
 }
+
+func lerp(_ a: simd_float3, _ b: simd_float3, t: simd_float1) -> simd_float3{
+    return t * b + (1 - t) * a
+}

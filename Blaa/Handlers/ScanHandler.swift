@@ -209,7 +209,6 @@ final class ScanHandler : RenderingHelper{
         currentBufferIndex = (currentBufferIndex + 1) % maxInFlightBuffers
         pointCloudUniformsBuffers[currentBufferIndex][0] = pointCloudUniforms
         
-        //        if shouldAccumulate(frame: currentFrame), updateDepthTextures(frame: currentFrame) {
         if shouldAccumulate(frame: currentFrame), updateDepthTextures(frame: currentFrame) {
             accumulatePoints(frame: currentFrame, commandBuffer: commandBuffer, renderEncoder: renderEncoder)
         }
@@ -220,10 +219,6 @@ final class ScanHandler : RenderingHelper{
             retainingTextures.removeAll()
         }
         rgbUniformsBuffers[currentBufferIndex][0] = rgbUniforms
-        
-//        if isCollectingData {
-//            currentFrameTex = device.makeTexture(descriptor: videoTextureDescriptor)
-//        }
         
         renderEncoder.setDepthStencilState(relaxedStencilState)
         renderEncoder.setRenderPipelineState(yCbCrToRGBPipelineState)
@@ -274,7 +269,7 @@ final class ScanHandler : RenderingHelper{
     private func accumulatePoints(frame: ARFrame, commandBuffer: MTLCommandBuffer, renderEncoder: MTLRenderCommandEncoder) {
         pointCloudUniforms.pointCloudCurrentIndex = Int32(currentPointIndex)
         
-        var retainingTextures = [capturedImageTextureY, capturedImageTextureCbCr, depthTexture, confidenceTexture]
+        var retainingTextures = [/* capturedImageTextureY, capturedImageTextureCbCr, */ depthTexture, confidenceTexture]
         
         commandBuffer.addCompletedHandler { buffer in
             retainingTextures.removeAll()
@@ -283,14 +278,14 @@ final class ScanHandler : RenderingHelper{
             while (i < self.maxPoints && self.particlesBuffer[i].position != simd_float3(0.0,0.0,0.0)) {
                 //  maybe only save high conf particles to cpu???
                 let position = self.particlesBuffer[i].position
-                let color = self.particlesBuffer[i].color
+//                let color = self.particlesBuffer[i].color
                 let normal = self.particlesBuffer[i].normal
                 let confidence = self.particlesBuffer[i].confidence
                 if confidence >= self.confidenceThreshold {
                     self.cpuParticlesBuffer.append(
                         CPUParticle(position: position,
                                     normal: normal,
-                                    color: color,
+//                                    color: color,
                                     confidence: confidence))
                     i += 1
                 }
@@ -302,10 +297,10 @@ final class ScanHandler : RenderingHelper{
         renderEncoder.setVertexBuffer(pointCloudUniformsBuffers[currentBufferIndex])
         renderEncoder.setVertexBuffer(particlesBuffer)
         renderEncoder.setVertexBuffer(gridPointsBuffer)
-        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(capturedImageTextureY!), index: Int(kTextureY.rawValue))
-        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(capturedImageTextureCbCr!), index: Int(kTextureCbCr.rawValue))
-        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(depthTexture!), index: Int(kTextureDepth.rawValue))
-        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(confidenceTexture!), index: Int(kTextureConfidence.rawValue))
+//        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(capturedImageTextureY!), index: Int(kTextureY.rawValue))
+//        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(capturedImageTextureCbCr!), index: Int(kTextureCbCr.rawValue))
+        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(depthTexture!), index: 0)
+        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(confidenceTexture!), index: 1)
         renderEncoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: gridPointsBuffer.count)
         
         currentPointIndex = (currentPointIndex + gridPointsBuffer.count) % maxPoints

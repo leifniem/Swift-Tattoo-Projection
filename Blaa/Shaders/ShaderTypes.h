@@ -55,7 +55,7 @@ struct PointCloudUniforms {
 struct ParticleUniforms {
     simd_float3 position;
     simd_float3 normal;
-    simd_float3 color;
+//    simd_float3 color;
     float confidence;
 };
 

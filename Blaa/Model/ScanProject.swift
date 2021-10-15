@@ -168,7 +168,7 @@ class ScanProject : Codable {
         var uniformsCloud = [ParticleUniforms]()
         pointCloud?.forEach{ point in
             var uniforms = ParticleUniforms()
-            uniforms.color = point.color
+//            uniforms.color = point.color
             uniforms.position = point.position
             uniforms.confidence = point.confidence
             
