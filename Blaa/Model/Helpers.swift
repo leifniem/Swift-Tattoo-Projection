@@ -8,9 +8,44 @@
 import ARKit
 import VideoToolbox
 import Accelerate
+import GameplayKit
 
-typealias Float2 = SIMD2<Float>
-typealias Float3 = SIMD3<Float>
+typealias Box = GKBox
+
+extension GKBox: Codable {
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        let boxes = try container.decode([simd_float3].self)
+        self.init(boxMin: boxes[0], boxMax: boxes[1])
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode([self.boxMin, self.boxMax])
+    }
+    
+    public func contains(_ point: simd_float3) -> Bool {
+        return point > self.boxMin && point < self.boxMax
+    }
+    
+    var center: simd_float3 {
+        get {
+            return (self.boxMin + self.boxMax) / 2
+        }
+    }
+    
+    var boxSize: simd_float3 {
+        get {
+            return self.boxMax - self.boxMin
+        }
+    }
+    
+    var halfBoxSize: simd_float3 {
+        get {
+            return self.boxSize / 2
+        }
+    }
+}
 
 extension Float {
     static let degreesToRadian = Float.pi / 180
@@ -18,9 +53,9 @@ extension Float {
 
 extension matrix_float3x3 {
     mutating func copy(from affine: CGAffineTransform) {
-        columns.0 = Float3(Float(affine.a), Float(affine.c), Float(affine.tx))
-        columns.1 = Float3(Float(affine.b), Float(affine.d), Float(affine.ty))
-        columns.2 = Float3(0, 0, 1)
+        columns.0 = simd_float3(Float(affine.a), Float(affine.c), Float(affine.tx))
+        columns.1 = simd_float3(Float(affine.b), Float(affine.d), Float(affine.ty))
+        columns.2 = simd_float3(0, 0, 1)
     }
 }
 
@@ -167,6 +202,12 @@ extension simd_float4x4 : Codable {
     }
 }
 
-func lerp(_ a: simd_float3, _ b: simd_float3, t: simd_float1) -> simd_float3{
+extension simd_float3: Comparable {
+    public static func < (lhs: SIMD3<Scalar>, rhs: SIMD3<Scalar>) -> Bool {
+        return simd_min(lhs, rhs) == lhs
+    }
+}
+
+func lerp(_ a: simd_float3, _ b: simd_float3, t: Float) -> simd_float3{
     return t * b + (1 - t) * a
 }

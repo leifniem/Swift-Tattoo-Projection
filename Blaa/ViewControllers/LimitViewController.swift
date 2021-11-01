@@ -40,7 +40,6 @@ final class LimitViewController: UIViewController {
         renderView.preferredFramesPerSecond = 30
         limitHandler = LimitHandler(device: device, view: renderView, project: project!)
         
-        
         timeSlider.addTarget(self, action: #selector(timeSliderValueChanged), for: .valueChanged)
         sliderXMin.addTarget(self, action: #selector(limitSliderValueChanged), for: .valueChanged)
         sliderXMax.addTarget(self, action: #selector(limitSliderValueChanged), for: .valueChanged)
@@ -48,8 +47,6 @@ final class LimitViewController: UIViewController {
         sliderYMax.addTarget(self, action: #selector(limitSliderValueChanged), for: .valueChanged)
         sliderZMin.addTarget(self, action: #selector(limitSliderValueChanged), for: .valueChanged)
         sliderZMax.addTarget(self, action: #selector(limitSliderValueChanged), for: .valueChanged)
-        
-        draw(in: renderView)
     }
     
     @objc func timeSliderValueChanged() {
@@ -95,9 +92,9 @@ final class LimitViewController: UIViewController {
     override func prepare(for segue: UIStoryboardSegue, sender: Any?)
     {
         if segue.destination is ReconstructionViewController {
+            limitHandler.writeBoundingBox()
             let rvc = segue.destination as? ReconstructionViewController
             rvc?.project = self.project
-            rvc?.boundingBox = limitHandler.bounds
         }
     }
     

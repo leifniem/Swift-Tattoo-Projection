@@ -9,7 +9,8 @@ final class LimitHandler: RenderingHelper {
     private var viewportSize = CGSize()
     
     private var currentFrame: CVPixelBuffer?
-    private var currentMatrix: matrix_float4x4?
+    private var currentViewMatrix: matrix_float4x4?
+    private var currentProjectionMatrix: matrix_float4x4?
     private var currentFrameIndex: Int
     private var rgbUniforms: RGBUniforms
     private var rgbUniformsBuffer: MetalBuffer<RGBUniforms>
@@ -19,18 +20,18 @@ final class LimitHandler: RenderingHelper {
     
     private var commandQueue: MTLCommandQueue
     private var videoAspect: Float
-    private var videoResolution: Float2
+    private var videoResolution: simd_float2
     //    private let particleSize: Float = 8
     private var frameTextureY: CVMetalTexture?
     private var frameTextureCbCr: CVMetalTexture?
     private var frameTextureBGRA: CVMetalTexture?
     private let isYcBcR: Bool
     
-    private var boundingBox = BoundingBox()
-    private var limitBox = BoundingBox()
-    private var limitBoxBuffer: MetalBuffer<BoundingBox>
+    private var boundingBox: Box
+    private var limitBox: Box
+    private var limitBoxBuffer: MetalBuffer<Box>
     
-    var bounds: BoundingBox {
+    var bounds: Box {
         get {
             return self.limitBox
         }
@@ -44,7 +45,7 @@ final class LimitHandler: RenderingHelper {
         self.project = project
         self.currentFrameIndex = 0
         self.videoAspect = Float(project.videoFrames![0].getWidth(plane: 0) / project.videoFrames![0].getHeight(plane: 0))
-        self.videoResolution = Float2(
+        self.videoResolution = simd_float2(
             Float(project.videoFrames![0].getWidth(plane: 0)),
             Float(project.videoFrames![0].getHeight(plane: 0))
         )
@@ -68,14 +69,21 @@ final class LimitHandler: RenderingHelper {
         }()
         rgbUniformsBuffer = MetalBuffer<RGBUniforms>(device: device, array: [rgbUniforms], index: 0)
         
-        boundingBox.xMin = project.pointCloud!.min(by:{ $0.position.x < $1.position.x })!.position.x
-        boundingBox.xMax = project.pointCloud!.max(by:{ $0.position.x < $1.position.x })!.position.x
-        boundingBox.yMin = project.pointCloud!.min(by:{ $0.position.y < $1.position.y })!.position.y
-        boundingBox.yMax = project.pointCloud!.max(by:{ $0.position.y < $1.position.y })!.position.y
-        boundingBox.zMin = project.pointCloud!.min(by:{ $0.position.z < $1.position.z })!.position.z
-        boundingBox.zMax = project.pointCloud!.max(by:{ $0.position.z < $1.position.z })!.position.z
-        limitBox = boundingBox
-        limitBoxBuffer = MetalBuffer<BoundingBox>(device: device, array: [limitBox], index: kBoundingBox.rawValue)
+        var boxMin = simd_float3()
+        var boxMax = simd_float3()
+        boxMin.x = project.pointCloud!.min(by:{ $0.position.x < $1.position.x })!.position.x
+        boxMax.x = project.pointCloud!.max(by:{ $0.position.x < $1.position.x })!.position.x
+        boxMin.y = project.pointCloud!.min(by:{ $0.position.y < $1.position.y })!.position.y
+        boxMax.y = project.pointCloud!.max(by:{ $0.position.y < $1.position.y })!.position.y
+        boxMin.z = project.pointCloud!.min(by:{ $0.position.z < $1.position.z })!.position.z
+        boxMax.z = project.pointCloud!.max(by:{ $0.position.z < $1.position.z })!.position.z
+        self.boundingBox = Box(boxMin: boxMin, boxMax: boxMax)
+        if project.boundingBox != nil {
+            limitBox = project.boundingBox!
+        } else {
+            limitBox = boundingBox
+        }
+        limitBoxBuffer = MetalBuffer<Box>(device: device, array: [limitBox], index: kBoundingBox.rawValue)
         
         super.init(device: device, renderDestination: view)
         
@@ -84,7 +92,8 @@ final class LimitHandler: RenderingHelper {
         self.pointCloudUniforms.particleSize = 8
         self.pointCloudUniforms.confidenceThreshold = 2
         self.pointCloudUniforms.pointCloudCurrentIndex = 0
-        self.pointCloudUniforms.viewProjectionMatrix = project.viewProjectionMatrixes![0]
+        self.pointCloudUniforms.viewMatrix = project.viewMatrixBuffer![0]
+        self.pointCloudUniforms.projectionMatrix = project.projectionMatrixBuffer![0]
     }
     
     func setPlayBackFrame(value: Float) {
@@ -94,17 +103,17 @@ final class LimitHandler: RenderingHelper {
     func setBoundingBoxCoordinate(axis: String, t: Float) {
         switch axis{
         case "xMin":
-            self.limitBox.xMin = lerp(t: t, min: boundingBox.xMin, max: (boundingBox.xMax + boundingBox.xMin) / 2)
+            self.limitBox.boxMin.x = lerp(t: t, min: boundingBox.boxMin.x, max: boundingBox.boxMax.x)
         case "xMax":
-            self.limitBox.xMax = lerp(t: t, min: (boundingBox.xMax + boundingBox.xMin) / 2, max: boundingBox.xMax)
+            self.limitBox.boxMax.x = lerp(t: t, min: boundingBox.boxMin.x, max: boundingBox.boxMax.x)
         case "yMin":
-            self.limitBox.yMin = lerp(t: t, min: boundingBox.yMin, max: (boundingBox.yMax + boundingBox.yMin) / 2)
+            self.limitBox.boxMin.y = lerp(t: t, min: boundingBox.boxMin.y, max: boundingBox.boxMax.y)
         case "yMax":
-            self.limitBox.yMax = lerp(t: t, min: (boundingBox.yMax + boundingBox.yMin) / 2, max: boundingBox.yMax)
+            self.limitBox.boxMax.y = lerp(t: t, min: boundingBox.boxMin.y, max: boundingBox.boxMax.y)
         case "zMin":
-            self.limitBox.zMin = lerp(t: t, min: boundingBox.zMin, max: (boundingBox.zMax + boundingBox.zMin) / 2)
+            self.limitBox.boxMin.z = lerp(t: t, min: boundingBox.boxMin.z, max: boundingBox.boxMax.z)
         case "zMax":
-            self.limitBox.zMax = lerp(t: t, min: (boundingBox.zMax + boundingBox.zMin) / 2, max: boundingBox.zMax)
+            self.limitBox.boxMax.z = lerp(t: t, min: boundingBox.boxMin.z, max: boundingBox.boxMax.z)
         default:
             break
         }
@@ -114,11 +123,18 @@ final class LimitHandler: RenderingHelper {
         return t * max + (1 - t) * min
     }
     
+    func writeBoundingBox() {
+        self.project.setBoundingBox(limitBox)
+        print(self.limitBox.boxMin, self.limitBox.boxMax)
+    }
+    
     func draw () {
         currentFrame = project.videoFrames![currentFrameIndex]
-        currentMatrix = project.viewProjectionMatrixes![currentFrameIndex]
+        currentViewMatrix = project.viewMatrixBuffer![currentFrameIndex]
+        currentProjectionMatrix = project.projectionMatrixBuffer![currentFrameIndex]
         guard currentFrame != nil,
-              currentMatrix != nil,
+              currentViewMatrix != nil,
+              currentProjectionMatrix != nil,
               let renderDescriptor = renderDestination.currentRenderPassDescriptor,
               let commandBuffer = commandQueue.makeCommandBuffer(),
               let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderDescriptor)
@@ -129,7 +145,8 @@ final class LimitHandler: RenderingHelper {
         
         //        TODO: Check if triple buffering is needed to reach performance
         
-        pointCloudUniformsBuffer[0].viewProjectionMatrix = currentMatrix!
+        pointCloudUniformsBuffer[0].viewMatrix = currentViewMatrix!
+        pointCloudUniformsBuffer[0].projectionMatrix = currentProjectionMatrix!
         limitBoxBuffer[0] = limitBox
         
         if self.isYcBcR {
@@ -165,6 +182,6 @@ final class LimitHandler: RenderingHelper {
     }
 }
 
-extension LimitHandler {
-    
-}
+//extension LimitHandler {
+//
+//}

@@ -1,127 +1,13 @@
 //  https://github.com/raywenderlich/swift-algorithm-club/blob/master/Octree/Octree.playground/Sources/Octree.swift
 
-import Foundation
+import GameplayKit
 import simd
-
-public struct Box: CustomStringConvertible {
-    public var boxMin: simd_float3
-    public var boxMax: simd_float3
-    
-    public init(boxMin: simd_float3, boxMax: simd_float3) {
-        self.boxMin = boxMin
-        self.boxMax = boxMax
-    }
-    
-    public var boxSize: simd_float3 {
-        return boxMax - boxMin
-    }
-    
-    var halfBoxSize: simd_float3 {
-        return boxSize/2
-    }
-    
-    var center: simd_float3 {
-        return (boxMin + boxMax)/2
-    }
-    
-    var frontLeftTop: Box {
-        let boxMin = self.boxMin + simd_float3(0, halfBoxSize.y, halfBoxSize.z)
-        let boxMax = self.boxMax - simd_float3(halfBoxSize.x, 0, 0)
-        return Box(boxMin: boxMin, boxMax: boxMax)
-    }
-    var frontLeftBottom: Box {
-        let boxMin = self.boxMin + simd_float3(0, 0, halfBoxSize.z)
-        let boxMax = self.boxMax - simd_float3(halfBoxSize.x, halfBoxSize.y, 0)
-        return Box(boxMin: boxMin, boxMax: boxMax)
-    }
-    var frontRightTop: Box {
-        let boxMin = self.boxMin + simd_float3(halfBoxSize.x, halfBoxSize.y, halfBoxSize.z)
-        let boxMax = self.boxMax - simd_float3(0, 0, 0)
-        return Box(boxMin: boxMin, boxMax: boxMax)
-    }
-    var frontRightBottom: Box {
-        let boxMin = self.boxMin + simd_float3(halfBoxSize.x, 0, halfBoxSize.z)
-        let boxMax = self.boxMax - simd_float3(0, halfBoxSize.y, 0)
-        return Box(boxMin: boxMin, boxMax: boxMax)
-    }
-    var backLeftTop: Box {
-        let boxMin = self.boxMin + simd_float3(0, halfBoxSize.y, 0)
-        let boxMax = self.boxMax - simd_float3(halfBoxSize.x, 0, halfBoxSize.z)
-        return Box(boxMin: boxMin, boxMax: boxMax)
-    }
-    var backLeftBottom: Box {
-        let boxMin = self.boxMin + simd_float3(0, 0, 0)
-        let boxMax = self.boxMax - simd_float3(halfBoxSize.x, halfBoxSize.y, halfBoxSize.z)
-        return Box(boxMin: boxMin, boxMax: boxMax)
-    }
-    var backRightTop: Box {
-        let boxMin = self.boxMin + simd_float3(halfBoxSize.x, halfBoxSize.y, 0)
-        let boxMax = self.boxMax - simd_float3(0, 0, halfBoxSize.z)
-        return Box(boxMin: boxMin, boxMax: boxMax)
-    }
-    var backRightBottom: Box {
-        let boxMin = self.boxMin + simd_float3(halfBoxSize.x, 0, 0)
-        let boxMax = self.boxMax - simd_float3(0, halfBoxSize.y, halfBoxSize.z)
-        return Box(boxMin: boxMin, boxMax: boxMax)
-    }
-    
-    public func contains(_ point: simd_float3) -> Bool {
-        return (boxMin.x <= point.x && point.x <= boxMax.x) && (boxMin.y <= point.y && point.y <= boxMax.y) && (boxMin.z <= point.z && point.z <= boxMax.z)
-    }
-    
-    public func contains(_ box: Box) -> Bool {
-        return
-            self.boxMin.x <= box.boxMin.x &&
-                self.boxMin.y <= box.boxMin.y &&
-                self.boxMin.z <= box.boxMin.z &&
-                self.boxMax.x >= box.boxMax.x &&
-                self.boxMax.y >= box.boxMax.y &&
-                self.boxMax.z >= box.boxMax.z
-    }
-    
-    public func isContained(in box: Box) -> Bool {
-        return
-            self.boxMin.x >= box.boxMin.x &&
-                self.boxMin.y >= box.boxMin.y &&
-                self.boxMin.z >= box.boxMin.z &&
-                self.boxMax.x <= box.boxMax.x &&
-                self.boxMax.y <= box.boxMax.y &&
-                self.boxMax.z <= box.boxMax.z
-    }
-    
-    /* This intersect function does not handle all possibilities such as two beams
-     of different diameter crossing each other half way. But it does cover all cases
-     needed for an octree as the bounding box has to contain the given intersect box */
-    public func intersects(_ box: Box) -> Bool {
-        let corners = [
-            simd_float3(boxMin.x, boxMax.y, boxMax.z), //frontLeftTop
-            simd_float3(boxMin.x, boxMin.y, boxMax.z), //frontLeftBottom
-            simd_float3(boxMax.x, boxMax.y, boxMax.z), //frontRightTop
-            simd_float3(boxMax.x, boxMin.y, boxMax.z), //frontRightBottom
-            simd_float3(boxMin.x, boxMax.y, boxMin.z), //backLeftTop
-            simd_float3(boxMin.x, boxMin.y, boxMin.z), //backLeftBottom
-            simd_float3(boxMax.x, boxMax.y, boxMin.z), //backRightTop
-            simd_float3(boxMax.x, boxMin.y, boxMin.z)  //backRightBottom
-        ]
-        for corner in corners {
-            if box.contains(corner) {
-                return true
-            }
-        }
-        return false
-    }
-    
-    public var description: String {
-        return "Box from:\(boxMin) to:\(boxMax)"
-    }
-}
 
 public class OctreeNode<T: Equatable>: CustomStringConvertible {
     let box: Box
     var point: simd_float3!
     var elements: [T]!
     var type: NodeType = .leaf
-    var weight: simd_float1?
     
     enum NodeType {
         case leaf
@@ -210,8 +96,8 @@ public class OctreeNode<T: Equatable>: CustomStringConvertible {
     }
     
     @discardableResult
-    func add(_ element: T, at point: simd_float3) -> OctreeNode {
-        return tryAdd(element, at: point)!
+    func add(_ element: T, at point: simd_float3) -> OctreeNode? {
+        return tryAdd(element, at: point)
     }
     
     private func tryAdd(_ element: T, at point: simd_float3) -> OctreeNode? {
@@ -349,12 +235,12 @@ public class Octree<T: Equatable>: CustomStringConvertible {
         return "Octree\n" + root.recursiveDescription
     }
     
-    public init(boundingBox: Box, minimumCellSize: Double) {
+    public init(boundingBox: GKBox, minimumCellSize: Float) {
         root = OctreeNode<T>(box: boundingBox)
     }
     
     @discardableResult
-    public func add(_ element: T, at point: simd_float3) -> OctreeNode<T> {
+    public func add(_ element: T, at point: simd_float3) -> OctreeNode<T>? {
         return root.add(element, at: point)
     }
     
@@ -372,12 +258,110 @@ public class Octree<T: Equatable>: CustomStringConvertible {
         return root.elements(at: point)
     }
     
-    public func elements(in box: Box) -> [T]? {
+    public func elements(in box: GKBox) -> [T]? {
         precondition(root.box.contains(box), "box is outside of octree bounds")
         return root.elements(in: box)
     }
     
-    public func makeIterator() -> OctreeNode<T>.Children.ChildrenIterator{
-        return self.makeIterator()
+    //    public func makeIterator() -> OctreeNode<T>.Children.ChildrenIterator{
+    //        return OctreeNode<T>.Children(parentNode:self.root).makeIterator()
+    //    }
+}
+
+extension GKBox {
+    public var boxSize: simd_float3 {
+        return boxMax - boxMin
+    }
+    
+    var halfBoxSize: simd_float3 {
+        return boxSize/2
+    }
+    
+    var center: simd_float3 {
+        return (boxMin + boxMax)/2
+    }
+    
+    var frontLeftTop: GKBox {
+        let boxMin = self.boxMin + simd_float3(0, halfBoxSize.y, halfBoxSize.z)
+        let boxMax = self.boxMax - simd_float3(halfBoxSize.x, 0, 0)
+        return GKBox(boxMin: boxMin, boxMax: boxMax)
+    }
+    var frontLeftBottom: GKBox {
+        let boxMin = self.boxMin + simd_float3(0, 0, halfBoxSize.z)
+        let boxMax = self.boxMax - simd_float3(halfBoxSize.x, halfBoxSize.y, 0)
+        return GKBox(boxMin: boxMin, boxMax: boxMax)
+    }
+    var frontRightTop: GKBox {
+        let boxMin = self.boxMin + simd_float3(halfBoxSize.x, halfBoxSize.y, halfBoxSize.z)
+        let boxMax = self.boxMax - simd_float3(0, 0, 0)
+        return GKBox(boxMin: boxMin, boxMax: boxMax)
+    }
+    var frontRightBottom: GKBox {
+        let boxMin = self.boxMin + simd_float3(halfBoxSize.x, 0, halfBoxSize.z)
+        let boxMax = self.boxMax - simd_float3(0, halfBoxSize.y, 0)
+        return GKBox(boxMin: boxMin, boxMax: boxMax)
+    }
+    var backLeftTop: GKBox {
+        let boxMin = self.boxMin + simd_float3(0, halfBoxSize.y, 0)
+        let boxMax = self.boxMax - simd_float3(halfBoxSize.x, 0, halfBoxSize.z)
+        return GKBox(boxMin: boxMin, boxMax: boxMax)
+    }
+    var backLeftBottom: GKBox {
+        let boxMin = self.boxMin + simd_float3(0, 0, 0)
+        let boxMax = self.boxMax - simd_float3(halfBoxSize.x, halfBoxSize.y, halfBoxSize.z)
+        return GKBox(boxMin: boxMin, boxMax: boxMax)
+    }
+    var backRightTop: GKBox {
+        let boxMin = self.boxMin + simd_float3(halfBoxSize.x, halfBoxSize.y, 0)
+        let boxMax = self.boxMax - simd_float3(0, 0, halfBoxSize.z)
+        return GKBox(boxMin: boxMin, boxMax: boxMax)
+    }
+    var backRightBottom: GKBox {
+        let boxMin = self.boxMin + simd_float3(halfBoxSize.x, 0, 0)
+        let boxMax = self.boxMax - simd_float3(0, halfBoxSize.y, halfBoxSize.z)
+        return GKBox(boxMin: boxMin, boxMax: boxMax)
+    }
+    
+    public func contains(_ point: simd_float3) -> Bool {
+        return (boxMin.x <= point.x && point.x <= boxMax.x) && (boxMin.y <= point.y && point.y <= boxMax.y) && (boxMin.z <= point.z && point.z <= boxMax.z)
+    }
+    
+    public func contains(_ box: GKBox) -> Bool {
+        return
+        self.boxMin.x <= box.boxMin.x &&
+        self.boxMin.y <= box.boxMin.y &&
+        self.boxMin.z <= box.boxMin.z &&
+        self.boxMax.x >= box.boxMax.x &&
+        self.boxMax.y >= box.boxMax.y &&
+        self.boxMax.z >= box.boxMax.z
+    }
+    
+    public func isContained(in box: GKBox) -> Bool {
+        return
+        self.boxMin.x >= box.boxMin.x &&
+        self.boxMin.y >= box.boxMin.y &&
+        self.boxMin.z >= box.boxMin.z &&
+        self.boxMax.x <= box.boxMax.x &&
+        self.boxMax.y <= box.boxMax.y &&
+        self.boxMax.z <= box.boxMax.z
+    }
+    
+    public func intersects(_ box: GKBox) -> Bool {
+        let corners = [
+            simd_float3(boxMin.x, boxMax.y, boxMax.z), //frontLeftTop
+            simd_float3(boxMin.x, boxMin.y, boxMax.z), //frontLeftBottom
+            simd_float3(boxMax.x, boxMax.y, boxMax.z), //frontRightTop
+            simd_float3(boxMax.x, boxMin.y, boxMax.z), //frontRightBottom
+            simd_float3(boxMin.x, boxMax.y, boxMin.z), //backLeftTop
+            simd_float3(boxMin.x, boxMin.y, boxMin.z), //backLeftBottom
+            simd_float3(boxMax.x, boxMax.y, boxMin.z), //backRightTop
+            simd_float3(boxMax.x, boxMin.y, boxMin.z)  //backRightBottom
+        ]
+        for corner in corners {
+            if box.contains(corner) {
+                return true
+            }
+        }
+        return false
     }
 }

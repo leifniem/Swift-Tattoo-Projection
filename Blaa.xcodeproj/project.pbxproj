@@ -10,16 +10,19 @@
 		8C2B4D4C26F8D68A000F41D0 /* ProjectListView.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8C2B4D4B26F8D68A000F41D0 /* ProjectListView.storyboard */; };
 		8C2B4D4E26F8DAD0000F41D0 /* ProjectListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2B4D4D26F8DAD0000F41D0 /* ProjectListViewController.swift */; };
 		8C2B4D5026F8F93F000F41D0 /* ProjectsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2B4D4F26F8F93F000F41D0 /* ProjectsManager.swift */; };
+		8C2C6BAB272FE3E5005341DE /* StickyEncoding in Frameworks */ = {isa = PBXBuildFile; productRef = 8C2C6BAA272FE3E5005341DE /* StickyEncoding */; };
 		8C2F755726FDFB2600986007 /* LimitHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2F755626FDFB2600986007 /* LimitHandler.swift */; };
+		8C552C5D271B0E9300D80949 /* LeastSquaresFunctions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C552C5C271B0E9300D80949 /* LeastSquaresFunctions.swift */; };
+		8C552C5F271B3F3500D80949 /* Mesh.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C552C5E271B3F3500D80949 /* Mesh.swift */; };
 		8C6F2CF226FC8F1D0058840E /* SingleProjectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C6F2CF126FC8F1D0058840E /* SingleProjectViewController.swift */; };
+		8C72D34B271F195A00BF203A /* PythonKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8C72D34A271F195A00BF203A /* PythonKit */; };
 		8C888B632709BD4700C1B3AA /* ExtrasJSON in Frameworks */ = {isa = PBXBuildFile; productRef = 8C888B622709BD4700C1B3AA /* ExtrasJSON */; };
 		8C9F85F426FA00A1002980D8 /* Gzip in Frameworks */ = {isa = PBXBuildFile; productRef = 8C9F85F326FA00A1002980D8 /* Gzip */; };
 		8CA716EF26F2129A00D5993D /* VideoHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CA716EE26F2129A00D5993D /* VideoHandler.swift */; };
 		8CAE27ED26F0CF6500E26491 /* LimitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CAE27EC26F0CF6500E26491 /* LimitViewController.swift */; };
 		8CBFA4F326FE1D9900BFA7EA /* CompositionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CBFA4F226FE1D9900BFA7EA /* CompositionHandler.swift */; };
 		8CBFA4F526FE345100BFA7EA /* RendererExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CBFA4F426FE345100BFA7EA /* RendererExtension.swift */; };
-		8CC7B6F12713243000D64384 /* Octree.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CC7B6F02713243000D64384 /* Octree.swift */; };
-		8CD01CB4270C67A000BFBB85 /* KDTree in Frameworks */ = {isa = PBXBuildFile; productRef = 8CD01CB3270C67A000BFBB85 /* KDTree */; };
+		8CC19E4927217586009E0E57 /* Open3D-iOS in Frameworks */ = {isa = PBXBuildFile; productRef = 8CC19E4827217586009E0E57 /* Open3D-iOS */; };
 		8CD01CB6270C67B300BFBB85 /* ReconstructionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CD01CB5270C67B300BFBB85 /* ReconstructionHandler.swift */; };
 		8CD01CB8270C82A400BFBB85 /* ReconstructionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CD01CB7270C82A400BFBB85 /* ReconstructionViewController.swift */; };
 		8CE4A48C26E78B4800A4A217 /* ScanProject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CE4A48B26E78B4800A4A217 /* ScanProject.swift */; };
@@ -39,12 +42,14 @@
 		8C2B4D4D26F8DAD0000F41D0 /* ProjectListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectListViewController.swift; sourceTree = "<group>"; };
 		8C2B4D4F26F8F93F000F41D0 /* ProjectsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsManager.swift; sourceTree = "<group>"; };
 		8C2F755626FDFB2600986007 /* LimitHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimitHandler.swift; sourceTree = "<group>"; };
+		8C552C5C271B0E9300D80949 /* LeastSquaresFunctions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LeastSquaresFunctions.swift; sourceTree = "<group>"; };
+		8C552C5E271B3F3500D80949 /* Mesh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mesh.swift; sourceTree = "<group>"; };
 		8C6F2CF126FC8F1D0058840E /* SingleProjectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleProjectViewController.swift; sourceTree = "<group>"; };
+		8C72D34C271F249500BF203A /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
 		8CA716EE26F2129A00D5993D /* VideoHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoHandler.swift; sourceTree = "<group>"; };
 		8CAE27EC26F0CF6500E26491 /* LimitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimitViewController.swift; sourceTree = "<group>"; };
 		8CBFA4F226FE1D9900BFA7EA /* CompositionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositionHandler.swift; sourceTree = "<group>"; };
 		8CBFA4F426FE345100BFA7EA /* RendererExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RendererExtension.swift; sourceTree = "<group>"; };
-		8CC7B6F02713243000D64384 /* Octree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Octree.swift; sourceTree = "<group>"; };
 		8CD01CB5270C67B300BFBB85 /* ReconstructionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReconstructionHandler.swift; sourceTree = "<group>"; };
 		8CD01CB7270C82A400BFBB85 /* ReconstructionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReconstructionViewController.swift; sourceTree = "<group>"; };
 		8CE4A48B26E78B4800A4A217 /* ScanProject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanProject.swift; sourceTree = "<group>"; };
@@ -70,15 +75,25 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8C2C6BAB272FE3E5005341DE /* StickyEncoding in Frameworks */,
 				8C9F85F426FA00A1002980D8 /* Gzip in Frameworks */,
-				8CD01CB4270C67A000BFBB85 /* KDTree in Frameworks */,
 				8C888B632709BD4700C1B3AA /* ExtrasJSON in Frameworks */,
+				8C72D34B271F195A00BF203A /* PythonKit in Frameworks */,
+				8CC19E4927217586009E0E57 /* Open3D-iOS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8C5F6898271EF687003BEDB5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				8C72D34C271F249500BF203A /* libc++.tbd */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		8CBEEC5D270DBE3B00021218 /* Handlers */ = {
 			isa = PBXGroup;
 			children = (
@@ -94,13 +109,14 @@
 		8CE4A48726E78AC200A4A217 /* Model */ = {
 			isa = PBXGroup;
 			children = (
+				8C552C5C271B0E9300D80949 /* LeastSquaresFunctions.swift */,
 				E7B7223A24807ACA002E43E8 /* MetalBuffer.swift */,
 				E7B7223C24809D1E002E43E8 /* Helpers.swift */,
 				8CE4A48B26E78B4800A4A217 /* ScanProject.swift */,
 				8CE4A48D26E7AAE000A4A217 /* CPUParticle.swift */,
 				8C2B4D4F26F8F93F000F41D0 /* ProjectsManager.swift */,
 				8CBFA4F426FE345100BFA7EA /* RendererExtension.swift */,
-				8CC7B6F02713243000D64384 /* Octree.swift */,
+				8C552C5E271B3F3500D80949 /* Mesh.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -158,6 +174,7 @@
 				E73DD12E24636FEF00D77039 /* Products */,
 				A6415A999BE1C768F18B2649 /* Configuration */,
 				BF2DD93DB9836723DA6BED14 /* LICENSE */,
+				8C5F6898271EF687003BEDB5 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -204,7 +221,9 @@
 			packageProductDependencies = (
 				8C9F85F326FA00A1002980D8 /* Gzip */,
 				8C888B622709BD4700C1B3AA /* ExtrasJSON */,
-				8CD01CB3270C67A000BFBB85 /* KDTree */,
+				8C72D34A271F195A00BF203A /* PythonKit */,
+				8CC19E4827217586009E0E57 /* Open3D-iOS */,
+				8C2C6BAA272FE3E5005341DE /* StickyEncoding */,
 			);
 			productName = SceneDepthDemo;
 			productReference = E73DD12D24636FEF00D77039 /* Point Cloud.app */;
@@ -237,7 +256,9 @@
 			packageReferences = (
 				8C9F85F226FA00A1002980D8 /* XCRemoteSwiftPackageReference "GzipSwift" */,
 				8C888B612709BD4700C1B3AA /* XCRemoteSwiftPackageReference "swift-extras-json" */,
-				8CD01CB2270C67A000BFBB85 /* XCRemoteSwiftPackageReference "KDTree" */,
+				8C72D349271F195A00BF203A /* XCRemoteSwiftPackageReference "PythonKit" */,
+				8CC19E4727217586009E0E57 /* XCRemoteSwiftPackageReference "Open3D-iOS" */,
+				8C2C6BA9272FE3E5005341DE /* XCRemoteSwiftPackageReference "sticky-encoding" */,
 			);
 			productRefGroup = E73DD12E24636FEF00D77039 /* Products */;
 			projectDirPath = "";
@@ -277,12 +298,13 @@
 				E73DD13624636FEF00D77039 /* ScanHandler.swift in Sources */,
 				8CAE27ED26F0CF6500E26491 /* LimitViewController.swift in Sources */,
 				8C2F755726FDFB2600986007 /* LimitHandler.swift in Sources */,
+				8C552C5D271B0E9300D80949 /* LeastSquaresFunctions.swift in Sources */,
 				8CBFA4F326FE1D9900BFA7EA /* CompositionHandler.swift in Sources */,
 				8C2B4D4E26F8DAD0000F41D0 /* ProjectListViewController.swift in Sources */,
 				8C2B4D5026F8F93F000F41D0 /* ProjectsManager.swift in Sources */,
+				8C552C5F271B3F3500D80949 /* Mesh.swift in Sources */,
 				8CD01CB8270C82A400BFBB85 /* ReconstructionViewController.swift in Sources */,
 				8CE4A48C26E78B4800A4A217 /* ScanProject.swift in Sources */,
-				8CC7B6F12713243000D64384 /* Octree.swift in Sources */,
 				E73DD13824636FEF00D77039 /* ScanViewController.swift in Sources */,
 				E73DD13124636FEF00D77039 /* AppDelegate.swift in Sources */,
 			);
@@ -427,22 +449,26 @@
 			baseConfigurationReference = 948146554F46E56B015690CC /* SampleCode.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_CXX_LIBRARY = "libc++";
 				CODE_SIGN_ENTITLEMENTS = "";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MD78U94534;
 				INFOPLIST_FILE = Blaa/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = website.leifs.Blaa;
 				PRODUCT_NAME = "Point Cloud";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
-				SWIFT_OBJC_BRIDGING_HEADER = Blaa/Shaders/ShaderTypes.h;
+				SWIFT_INCLUDE_PATHS = "${SRCROOT}/**";
+				SWIFT_OBJC_BRIDGING_HEADER = "Blaa/SceneDepthPointCloud-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -453,22 +479,26 @@
 			baseConfigurationReference = 948146554F46E56B015690CC /* SampleCode.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_CXX_LIBRARY = "libc++";
 				CODE_SIGN_ENTITLEMENTS = "";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = MD78U94534;
 				INFOPLIST_FILE = Blaa/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "";
 				PRODUCT_BUNDLE_IDENTIFIER = website.leifs.Blaa;
 				PRODUCT_NAME = "Point Cloud";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
-				SWIFT_OBJC_BRIDGING_HEADER = Blaa/Shaders/ShaderTypes.h;
+				SWIFT_INCLUDE_PATHS = "${SRCROOT}/**";
+				SWIFT_OBJC_BRIDGING_HEADER = "Blaa/SceneDepthPointCloud-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -498,6 +528,22 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		8C2C6BA9272FE3E5005341DE /* XCRemoteSwiftPackageReference "sticky-encoding" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/hlemai/sticky-encoding";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+		8C72D349271F195A00BF203A /* XCRemoteSwiftPackageReference "PythonKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pvieito/PythonKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.0;
+			};
+		};
 		8C888B612709BD4700C1B3AA /* XCRemoteSwiftPackageReference "swift-extras-json" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/swift-extras/swift-extras-json";
@@ -514,17 +560,27 @@
 				minimumVersion = 5.0.0;
 			};
 		};
-		8CD01CB2270C67A000BFBB85 /* XCRemoteSwiftPackageReference "KDTree" */ = {
+		8CC19E4727217586009E0E57 /* XCRemoteSwiftPackageReference "Open3D-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Bersaelor/KDTree";
+			repositoryURL = "https://github.com/kewlbear/Open3D-iOS";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
+				branch = main;
+				kind = branch;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		8C2C6BAA272FE3E5005341DE /* StickyEncoding */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8C2C6BA9272FE3E5005341DE /* XCRemoteSwiftPackageReference "sticky-encoding" */;
+			productName = StickyEncoding;
+		};
+		8C72D34A271F195A00BF203A /* PythonKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8C72D349271F195A00BF203A /* XCRemoteSwiftPackageReference "PythonKit" */;
+			productName = PythonKit;
+		};
 		8C888B622709BD4700C1B3AA /* ExtrasJSON */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 8C888B612709BD4700C1B3AA /* XCRemoteSwiftPackageReference "swift-extras-json" */;
@@ -535,10 +591,10 @@
 			package = 8C9F85F226FA00A1002980D8 /* XCRemoteSwiftPackageReference "GzipSwift" */;
 			productName = Gzip;
 		};
-		8CD01CB3270C67A000BFBB85 /* KDTree */ = {
+		8CC19E4827217586009E0E57 /* Open3D-iOS */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 8CD01CB2270C67A000BFBB85 /* XCRemoteSwiftPackageReference "KDTree" */;
-			productName = KDTree;
+			package = 8CC19E4727217586009E0E57 /* XCRemoteSwiftPackageReference "Open3D-iOS" */;
+			productName = "Open3D-iOS";
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -21,6 +21,7 @@ enum TextureIndices {
 enum BufferIndices {
     kPointCloudUniforms = 0,
     kParticleUniforms = 1,
+    kModelVertices = 1,
     kGridPoints = 2,
     kBoundingBox = 2,
 };
@@ -30,17 +31,14 @@ struct RGBUniforms {
     float viewRatio;
 };
 
-struct BoundingBox {
-    float xMin;
-    float xMax;
-    float yMin;
-    float yMax;
-    float zMin;
-    float zMax;
+struct Box {
+    simd_float3 boxMin;
+    simd_float3 boxMax;
 };
 
 struct PointCloudUniforms {
-    matrix_float4x4 viewProjectionMatrix;
+    matrix_float4x4 viewMatrix;
+    matrix_float4x4 projectionMatrix;
     matrix_float4x4 localToWorld;
     matrix_float3x3 cameraIntrinsicsInversed;
     simd_float2 cameraResolution;
@@ -55,7 +53,7 @@ struct PointCloudUniforms {
 struct ParticleUniforms {
     simd_float3 position;
     simd_float3 normal;
-//    simd_float3 color;
+    simd_float3 color;
     float confidence;
 };
 

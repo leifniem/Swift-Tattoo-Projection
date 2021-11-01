@@ -1,6 +1,6 @@
 import Foundation
 import Gzip
-import ExtrasJSON
+import StickyEncoding
 
 class ProjectsManager {
     
@@ -17,10 +17,10 @@ class ProjectsManager {
         do {
             let folders = try FileManager.default.contentsOfDirectory(at: projectsFolder, includingPropertiesForKeys: nil, options: [])
             try folders.forEach{
-                let metaURL = URL(fileURLWithPath: $0.appendingPathComponent("meta.json").path)
+                let metaURL = URL(fileURLWithPath: $0.appendingPathComponent(ScanProject.Constants.metaName).path)
                 if FileManager.default.fileExists(atPath: metaURL.path) {
                     let data = try Data(contentsOf: metaURL)
-                    try projectsInMemory.append(XJSONDecoder().decode(ScanProject.self, from: data))
+                    try projectsInMemory.append(BinaryDecoder().decode(ScanProject.self, from: [UInt8](data)))
                 }
             }
             projectsInMemory.sort{

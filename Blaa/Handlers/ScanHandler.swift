@@ -11,6 +11,7 @@ final class ScanHandler : RenderingHelper{
     var savedCloudURLs = [URL]()
     private var cpuParticlesBuffer = [CPUParticle]()
     private var viewMatrixBuffer = [matrix_float4x4]()
+    private var projectionMatrixBuffer = [matrix_float4x4]()
     private var videoBuffer = [CVPixelBuffer]()
     //    private var framesBuffer = [MTLTexture]()
     private let writeLockFlag = CVPixelBufferLockFlags.init(rawValue: 0)
@@ -59,7 +60,7 @@ final class ScanHandler : RenderingHelper{
     // The current viewport size
     private var viewportSize = CGSize()
     // The grid of sample points
-    private lazy var gridPointsBuffer = MetalBuffer<Float2>(device: device,
+    private lazy var gridPointsBuffer = MetalBuffer<simd_float2>(device: device,
                                                             array: makeGridPoints(),
                                                             index: kGridPoints.rawValue, options: [])
     
@@ -87,7 +88,7 @@ final class ScanHandler : RenderingHelper{
     
     // Camera data
     private var sampleFrame: ARFrame { session.currentFrame! }
-    private lazy var cameraResolution = Float2(Float(sampleFrame.camera.imageResolution.width), Float(sampleFrame.camera.imageResolution.height))
+    private lazy var cameraResolution = simd_float2(Float(sampleFrame.camera.imageResolution.width), Float(sampleFrame.camera.imageResolution.height))
     private lazy var viewToCamera = sampleFrame.displayTransform(for: orientation, viewportSize: viewportSize).inverted()
     private lazy var lastCameraTransform = sampleFrame.camera.transform
     
@@ -176,13 +177,17 @@ final class ScanHandler : RenderingHelper{
         let viewMatrix = camera.viewMatrix(for: orientation)
         let viewMatrixInversed = viewMatrix.inverse
         let projectionMatrix = camera.projectionMatrix(for: orientation, viewportSize: viewportSize, zNear: 0.001, zFar: 0)
-        let viewProjectionMatrix = projectionMatrix * viewMatrix
-        pointCloudUniforms.viewProjectionMatrix = viewProjectionMatrix
+//        let viewProjectionMatrix = projectionMatrix * viewMatrix
+        pointCloudUniforms.viewMatrix = viewMatrix
+        pointCloudUniforms.projectionMatrix = projectionMatrix
         pointCloudUniforms.cameraPosition = camera.transform.columns.3
         pointCloudUniforms.localToWorld = viewMatrixInversed * rotateToARCamera
         pointCloudUniforms.cameraIntrinsicsInversed = cameraIntrinsicsInversed
         if isCollectingData {
-            viewMatrixBuffer.insert(viewProjectionMatrix, at: bufferCurrentFrame)
+            viewMatrixBuffer.insert(viewMatrix, at: bufferCurrentFrame)
+            projectionMatrixBuffer.insert(projectionMatrix, at: bufferCurrentFrame)
+//            TODO build camera path for color map optimization
+            
         }
     }
     
@@ -250,6 +255,7 @@ final class ScanHandler : RenderingHelper{
                 DispatchQueue.main.async { [self] in
                     videoBuffer.insert(currentFrame.capturedImage.copy(), at: insertFrameIndex)
                     //                    framesBuffer.insert(texToSave, at: insertFrameIndex)
+//                    TODO write depth video to alpha
                 }
             }
             bufferCurrentFrame += 1
@@ -269,7 +275,7 @@ final class ScanHandler : RenderingHelper{
     private func accumulatePoints(frame: ARFrame, commandBuffer: MTLCommandBuffer, renderEncoder: MTLRenderCommandEncoder) {
         pointCloudUniforms.pointCloudCurrentIndex = Int32(currentPointIndex)
         
-        var retainingTextures = [/* capturedImageTextureY, capturedImageTextureCbCr, */ depthTexture, confidenceTexture]
+        var retainingTextures = [capturedImageTextureY, capturedImageTextureCbCr, depthTexture, confidenceTexture]
         
         commandBuffer.addCompletedHandler { buffer in
             retainingTextures.removeAll()
@@ -278,17 +284,18 @@ final class ScanHandler : RenderingHelper{
             while (i < self.maxPoints && self.particlesBuffer[i].position != simd_float3(0.0,0.0,0.0)) {
                 //  maybe only save high conf particles to cpu???
                 let position = self.particlesBuffer[i].position
-//                let color = self.particlesBuffer[i].color
+                let color = self.particlesBuffer[i].color
                 let normal = self.particlesBuffer[i].normal
                 let confidence = self.particlesBuffer[i].confidence
                 if confidence >= self.confidenceThreshold {
                     self.cpuParticlesBuffer.append(
                         CPUParticle(position: position,
                                     normal: normal,
-//                                    color: color,
-                                    confidence: confidence))
-                    i += 1
+                                    color: color
+//                                    confidence: confidence
+                                   ))
                 }
+                i += 1
             }
         }
         
@@ -297,10 +304,10 @@ final class ScanHandler : RenderingHelper{
         renderEncoder.setVertexBuffer(pointCloudUniformsBuffers[currentBufferIndex])
         renderEncoder.setVertexBuffer(particlesBuffer)
         renderEncoder.setVertexBuffer(gridPointsBuffer)
-//        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(capturedImageTextureY!), index: Int(kTextureY.rawValue))
-//        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(capturedImageTextureCbCr!), index: Int(kTextureCbCr.rawValue))
-        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(depthTexture!), index: 0)
-        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(confidenceTexture!), index: 1)
+        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(capturedImageTextureY!), index: Int(kTextureY.rawValue))
+        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(capturedImageTextureCbCr!), index: Int(kTextureCbCr.rawValue))
+        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(depthTexture!), index: Int(kTextureDepth.rawValue))
+        renderEncoder.setVertexTexture(CVMetalTextureGetTexture(confidenceTexture!), index: Int(kTextureConfidence.rawValue))
         renderEncoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: gridPointsBuffer.count)
         
         currentPointIndex = (currentPointIndex + gridPointsBuffer.count) % maxPoints
@@ -312,7 +319,7 @@ final class ScanHandler : RenderingHelper{
         let project = ScanProject()
         
         project.setPointCloud(data: cpuParticlesBuffer)
-        project.setViewProjectionMatrixes(data: viewMatrixBuffer)
+        project.setMatrices(viewMatrices: viewMatrixBuffer, projectionMatrices: projectionMatrixBuffer)
         project.setRawVideoData(data: videoBuffer)
         
         return project
@@ -372,17 +379,17 @@ private extension ScanHandler {
     }
     
     /// Makes sample points on camera image, also precompute the anchor point for animation
-    func makeGridPoints() -> [Float2] {
+    func makeGridPoints() -> [simd_float2] {
         let gridArea = cameraResolution.x * cameraResolution.y
         let spacing = sqrt(gridArea / Float(numGridPoints))
         let deltaX = Int(round(cameraResolution.x / spacing))
         let deltaY = Int(round(cameraResolution.y / spacing))
         
-        var points = [Float2]()
+        var points = [simd_float2]()
         for gridY in 0 ..< deltaY {
             let alternatingOffsetX = Float(gridY % 2) * spacing / 2
             for gridX in 0 ..< deltaX {
-                let cameraPoint = Float2(alternatingOffsetX + (Float(gridX) + 0.5) * spacing, (Float(gridY) + 0.5) * spacing)
+                let cameraPoint = simd_float2(alternatingOffsetX + (Float(gridX) + 0.5) * spacing, (Float(gridY) + 0.5) * spacing)
                 
                 points.append(cameraPoint)
             }

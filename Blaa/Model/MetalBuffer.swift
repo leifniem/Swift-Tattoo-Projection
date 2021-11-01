@@ -27,6 +27,12 @@ struct MetalBuffer<Element>: Resource {
     var stride: Int {
         MemoryLayout<Element>.stride
     }
+    
+    var bufferContent: MTLBuffer {
+        get {
+            return buffer
+        }
+    }
 
     /// Initializes the buffer with zeros, the buffer is given an appropriate length based on the provided element count.
     init(device: MTLDevice, count: Int, index: UInt32, label: String? = nil, options: MTLResourceOptions = []) {

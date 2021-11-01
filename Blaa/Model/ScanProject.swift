@@ -4,18 +4,25 @@ import UIKit
 import AVFoundation
 import Gzip
 import ExtrasJSON
+import ModelIO
+import MetalKit
+import SwiftUI
+import StickyEncoding
 
 class ProjectSpatialData : Codable {
     var pointCloud: [CPUParticle]?
-    var viewProjectionMatrixes: [matrix_float4x4]?
+    var viewMatrices: [matrix_float4x4]?
+    var projectionMatrices: [matrix_float4x4]?
 }
 
 class ScanProject : Codable {
+    
     enum Constants {
         static let videoName : String = "baseVideo.mp4"
-        static let metaName : String = "meta.json"
+        static let metaName : String = "meta.skinmeta"
         static let dataName : String = "data.skin"
         static let thumbnailName : String = "thumb.jpg"
+        static let modelName : String = "model.stl"
     }
     
     var title: String!
@@ -24,6 +31,8 @@ class ScanProject : Codable {
     private var modifiedDate: Date
     private var folderURL: URL
     private var baseVideoUrl: URL?
+    private var mesh: MTKMesh?
+    private var modelVertexDescriptor: MTLVertexDescriptor?
     private var hasVideo: Bool
     private var hasModel: Bool
     private var hasUV: Bool
@@ -31,8 +40,9 @@ class ScanProject : Codable {
     private var spatialData: ProjectSpatialData
     private var rawVideoData: [CVPixelBuffer]?
     private var thumb: UIImage?
-//    private var sketchTexture: UIImage?
-//    private var uvMap: UIImage?
+    private var bbox: Box?
+    //    private var sketchTexture: UIImage?
+    //    private var uvMap: UIImage?
     
     var id: UUID {
         get {return self.uuid}
@@ -47,14 +57,26 @@ class ScanProject : Codable {
     var videoFrames: [CVPixelBuffer]? {
         get {return self.rawVideoData}
     }
-    var viewProjectionMatrixes: [matrix_float4x4]? {
-        get {return self.spatialData.viewProjectionMatrixes}
+    var viewMatrices: [matrix_float4x4]? {
+        get {return self.spatialData.viewMatrices}
+    }
+    var viewMatrixBuffer: [matrix_float4x4]? {
+        get {return self.spatialData.viewMatrices}
+    }
+    var projectionMatrixBuffer: [matrix_float4x4]? {
+        get {return self.spatialData.projectionMatrices}
     }
     var pointCloud: [CPUParticle]? {
         get {return self.spatialData.pointCloud}
     }
     var thumbnail: UIImage? {
         get {return self.thumb}
+    }
+    var boundingBox: Box? {
+        get {return self.bbox}
+    }
+    var folder: URL? {
+        get {return self.folderURL}
     }
     var resources: [String: Bool] {
         get {
@@ -66,6 +88,19 @@ class ScanProject : Codable {
             ]
         }
     }
+    var model: MTKMesh? {
+        get {
+            return self.mesh
+        }
+    }
+    var modelPath: URL? {
+        get {
+            return self.folderURL.appendingPathComponent(Constants.modelName)
+        }
+    }
+    var vertexDescriptor: MTLVertexDescriptor? {
+        return self.modelVertexDescriptor
+    }
     
     enum ScanProjectMetaCodingKeys: String, CodingKey {
         case title
@@ -76,6 +111,7 @@ class ScanProject : Codable {
         case hasModel
         case hasUV
         case hasTexture
+        case bbox
     }
     
     enum ScanProjectDataCodingKeys: String, CodingKey {
@@ -119,6 +155,7 @@ class ScanProject : Codable {
         self.hasUV = try container.decode(Bool.self, forKey: .hasUV)
         self.hasTexture = try container.decode(Bool.self, forKey: .hasTexture)
         self.hasVideo = try container.decode(Bool.self, forKey: .hasVideo)
+        self.bbox = try container.decodeIfPresent(Box.self, forKey: .bbox)
         self.spatialData = ProjectSpatialData()
         
         self.folderURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent(self.uuid.uuidString)
@@ -140,11 +177,12 @@ class ScanProject : Codable {
         try container.encode(hasUV, forKey: .hasUV)
         try container.encode(hasTexture, forKey: .hasTexture)
         try container.encode(hasVideo, forKey: .hasVideo)
+        try container.encodeIfPresent(bbox, forKey: .bbox)
     }
     
-    func triggerModified() {
+    func triggerModified(spatial: Bool? = false) {
         self.modifiedDate = Date()
-        self.writeProjectFiles()
+        self.writeProjectFiles(spatial: spatial)
     }
     
     func setRawVideoData(data: [CVPixelBuffer]) {
@@ -154,46 +192,57 @@ class ScanProject : Codable {
         self.triggerModified()
     }
     
-    func setViewProjectionMatrixes(data: [matrix_float4x4]) {
-        self.spatialData.viewProjectionMatrixes = data
+    func setMatrices(viewMatrices: [matrix_float4x4], projectionMatrices: [matrix_float4x4]) {
+        self.spatialData.viewMatrices = viewMatrices
+        self.spatialData.projectionMatrices = projectionMatrices
         self.triggerModified()
     }
     
     func setPointCloud(data: [CPUParticle]) {
         self.spatialData.pointCloud = data
-        self.triggerModified()
+        self.triggerModified(spatial: true)
     }
     
     func getParticleUniforms() -> [ParticleUniforms] {
         var uniformsCloud = [ParticleUniforms]()
         pointCloud?.forEach{ point in
-            var uniforms = ParticleUniforms()
-//            uniforms.color = point.color
-            uniforms.position = point.position
-            uniforms.confidence = point.confidence
-            
-            uniformsCloud.append(uniforms)
+            if self.bbox == nil {
+                var uniforms = ParticleUniforms()
+                uniforms.position = point.position
+                uniformsCloud.append(uniforms)
+            }else if self.bbox != nil && self.bbox!.contains(point.position){
+                var uniforms = ParticleUniforms()
+                uniforms.position = point.position
+                uniformsCloud.append(uniforms)
+            }
         }
         return uniformsCloud
     }
     
-    func writeProjectFiles() {
+    func setBoundingBox(_ bb: Box) {
+        self.bbox = bb
+        self.triggerModified()
+    }
+    
+    func writeProjectFiles(spatial: Bool? = false) {
         do {
-            let bytes = try XJSONEncoder().encode(self)
+            let bytes = try BinaryEncoder().encode(self)
             let byteData = Data(bytes)
             try byteData.write(to: self.folderURL.appendingPathComponent(Constants.metaName))
         } catch _ {
             fatalError("Failure writing projectMetadata")
         }
         
-        self.encodeSpatial()
+        if spatial!{
+            self.encodeSpatial()
+        }
     }
     
     func encodeSpatial () {
         DispatchQueue.global(qos: .background).async {
             DispatchQueue.main.async { [self] in
                 do {
-                    let json = try XJSONEncoder().encode(self.spatialData)
+                    let json = try BinaryEncoder().encode(self.spatialData)
                     let jsonData = Data(json)
                     try jsonData.write(to: self.folderURL.appendingPathComponent(Constants.dataName))
                 } catch {
@@ -206,7 +255,7 @@ class ScanProject : Codable {
     func decodeSpatial() {
         do {
             let jsonData = try Data(contentsOf: self.folderURL.appendingPathComponent(Constants.dataName))
-            let spatialData = try XJSONDecoder().decode(ProjectSpatialData.self, from: jsonData)
+            let spatialData = try BinaryDecoder().decode(ProjectSpatialData.self, from: [UInt8](jsonData))
             self.spatialData = spatialData
         } catch {
             fatalError("Error while decoding spatial data of project \(self.title!).")
@@ -223,6 +272,7 @@ class ScanProject : Codable {
     
     func loadFullData() {
         self.readVideo()
+        if self.hasModel{ self.readModel() }
         self.decodeSpatial()
     }
     
@@ -246,11 +296,11 @@ class ScanProject : Codable {
             }
         }
         
-//        DispatchQueue.global(qos: .background).async {
-//            DispatchQueue.main.async { [self] in
-                handler.writeVideo(rawVideoData: self.rawVideoData!, videoURL: self.baseVideoUrl!)
-//            }
-//        }
+        //        DispatchQueue.global(qos: .background).async {
+        //            DispatchQueue.main.async { [self] in
+        handler.writeVideo(rawVideoData: self.rawVideoData!, videoURL: self.baseVideoUrl!)
+        //            }
+        //        }
     }
     
     func readVideo() {
@@ -268,14 +318,49 @@ class ScanProject : Codable {
             print("\(self.title!) has no thumbnail.")
         }
     }
-//    func exportProjectedVideo
+    //    func exportProjectedVideo
     
     // MARK: - 3D MODEL
-//    func setGeometry
-//    func exportOBJ
+    func setFileWritten() {
+        self.hasModel = true
+        self.readModel()
+        self.triggerModified()
+    }
+    
+    func readModel() {
+        let device = MTLCreateSystemDefaultDevice()!
+        let modelUrl = self.folderURL.appendingPathComponent(Constants.modelName)
+        let allocator = MTKMeshBufferAllocator(device: device)
+
+        let vertexDescriptor = MDLVertexDescriptor()
+        vertexDescriptor.attributes[0] = MDLVertexAttribute(name: MDLVertexAttributePosition, format: .float3, offset: 0, bufferIndex: 0)
+        vertexDescriptor.attributes[1] = MDLVertexAttribute(name: MDLVertexAttributeNormal, format: .float3, offset: 12, bufferIndex: 0)
+        vertexDescriptor.attributes[2] = MDLVertexAttribute(name: MDLVertexAttributeTextureCoordinate, format: .float2, offset: 24, bufferIndex: 0)
+        vertexDescriptor.attributes[3] = MDLVertexAttribute(name: MDLVertexAttributeColor, format: .float3, offset: 32, bufferIndex: 0)
+        vertexDescriptor.layouts[0] = MDLVertexBufferLayout(stride: 44)
+
+        let asset = MDLAsset(
+            url: modelUrl,
+            vertexDescriptor: vertexDescriptor,
+            bufferAllocator: allocator
+        )
+//        let asset = MDLAsset(url: modelUrl)
+        let meshes = asset.childObjects(of: MDLMesh.self) as! [MDLMesh]
+
+//        self.modelPipelineState = MTLRenderPipelineDescriptor()
+        self.modelVertexDescriptor = MTKMetalVertexDescriptorFromModelIO(vertexDescriptor)
+        guard meshes.first != nil else {
+            fatalError("No mesh found in obj.")
+        }
+        do {
+            self.mesh = try MTKMesh(mesh: meshes.first!, device: device)
+        } catch {
+            fatalError("\(error)")
+        }
+    }
     
     // MARK: - UV MAPPING
-//    func setUVCoords
-//    func exportUVMap
+    //    func setUVCoords
+    //    func exportUVMap
     
 }
