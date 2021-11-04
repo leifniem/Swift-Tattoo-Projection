@@ -1,7 +1,7 @@
 import UIKit
 import MetalKit
 
-class SingleProjectViewController: UIViewController, MTKViewDelegate {
+class SingleProjectViewController: UIViewController, MTKViewDelegate, UIImagePickerControllerDelegate & UINavigationControllerDelegate {
     
     @IBOutlet weak var compositionView: MTKView!
     @IBOutlet weak var videoTimeSlider: UISlider!
@@ -9,11 +9,17 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate {
     @IBOutlet weak var sketchPreview: UIImageView!
     @IBOutlet weak var generateModelButton: UIButton!
     @IBOutlet weak var playButton: UIImageView!
+    @IBOutlet weak var pickImageButton: UIButton!
+    @IBOutlet weak var exportFrameButton: UIButton!
     
     var project: ScanProject?
     private var compositionHandler: CompositionHandler!
     private var isPlaying: Bool = false
+    private let pickerController = UIImagePickerController()
     
+    override func viewDidAppear(_ animated: Bool) {
+        compositionHandler.updateModelPipeLineState()
+    }
     
     override func viewDidLoad() {
         guard project != nil else{
@@ -30,13 +36,19 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate {
         compositionView.preferredFramesPerSecond = 30
         compositionHandler = CompositionHandler(device: device, view: compositionView, project: project!)
         navigationItem.title = project!.title
-//        if project!.resources["video"] != nil {
-//            uvPreview.image = project!.thumbnail
-//        }
-        
         compositionHandler.drawRectResized(size: compositionView.bounds.size)
         
+        if project?.sketch != nil {
+            self.sketchPreview.image = project?.sketch
+        }
+        
+        pickerController.delegate = self
+        pickerController.mediaTypes = ["public.image"]
+        pickerController.sourceType = .photoLibrary
+        
         videoTimeSlider.addTarget(self, action: #selector(timelineValueChange), for: .valueChanged)
+        pickImageButton.addTarget(self, action: #selector(openGalleryPicker), for: .touchUpInside)
+        exportFrameButton.addTarget(self, action: #selector(saveFrame), for: .touchUpInside)
     }
     
     
@@ -52,6 +64,23 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate {
     @objc func timelineValueChange () {
         self.isPlaying = false
         compositionHandler.setPlayBackFrame(value: videoTimeSlider.value)
+    }
+    
+    @objc func saveFrame () {
+        self.compositionHandler.saveFrame()
+    }
+    
+    public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+        print("Hi")
+        guard let image = info[.originalImage] as? UIImage else {
+            return
+        }
+        print(image)
+        project?.setSketch(image)
+    }
+    
+    @objc func openGalleryPicker() {
+        self.navigationController?.present(pickerController, animated: true)
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?)

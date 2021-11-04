@@ -20,22 +20,22 @@ final class CompositionHandler: RenderingHelper {
     private var pointCloudUniforms: PointCloudUniforms
     private var pointCloudUniformsBuffer: MetalBuffer<PointCloudUniforms>
     private var mesh: MTKMesh?
-    //    private var submesh: MTKSubmesh?
-    //    private var vertBuffer: MTKMeshBuffer?
+    private var descriptor: MTLRenderPipelineDescriptor
     private var modelPipelineState: MTLRenderPipelineState?
+    private var sketchTexture: MTLTexture?
+    private var saveNextFrame = false
+    private var image: CGImage?
     
     private var commandQueue: MTLCommandQueue
     private var videoAspect: Float
     private var videoResolution: simd_float2
-    //    private let particleSize: Float = 8
-    private var frameTextureY: CVMetalTexture?
-    private var frameTextureCbCr: CVMetalTexture?
     
     init(device: MTLDevice, view: MTKView, project: ScanProject) {
         guard project.videoFrames != nil else {
             fatalError("Project passed has no video frame data")
         }
         self.view = view
+        view.framebufferOnly = false
         self.project = project
         self.currentFrameIndex = 0
         self.videoAspect = Float(project.videoFrames![0].getWidth(plane: 0) / project.videoFrames![0].getHeight(plane: 0))
@@ -58,37 +58,26 @@ final class CompositionHandler: RenderingHelper {
             return uniforms
         }()
         rgbUniformsBuffer = MetalBuffer<RGBUniforms>(device: device, array: [rgbUniforms], index: 0)
-        super.init(device: device, renderDestination: view)
         
         self.pointCloudUniforms.maxPoints = 15_000_000
-        self.pointCloudUniforms.cameraResolution = simd_float2(videoResolution)
+        self.pointCloudUniforms.cameraResolution = simd_float2(Float(view.drawableSize.width), Float(view.drawableSize.height))
         self.pointCloudUniforms.particleSize = 16
         self.pointCloudUniforms.confidenceThreshold = 2
         self.pointCloudUniforms.pointCloudCurrentIndex = 0
         self.pointCloudUniforms.viewMatrix = project.viewMatrixBuffer![0]
         self.pointCloudUniforms.projectionMatrix = project.projectionMatrixBuffer![0]
+        self.descriptor = MTLRenderPipelineDescriptor()
+        self.descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
+        self.descriptor.depthAttachmentPixelFormat = view.depthStencilPixelFormat
+        self.descriptor.colorAttachments[0].isBlendingEnabled = true
+        self.descriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+        self.descriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+        self.descriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
         
-        if project.resources["model"]! {
-            self.mesh = project.model
-            
-            let descriptor = MTLRenderPipelineDescriptor()
-            descriptor.vertexDescriptor = project.vertexDescriptor!
-            descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
-            descriptor.depthAttachmentPixelFormat = view.depthStencilPixelFormat
-            descriptor.colorAttachments[0].isBlendingEnabled = true
-            descriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
-            descriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
-            descriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
-            //            if !project.resources["texture"]! {
-            descriptor.vertexFunction = library.makeFunction(name: "wireVert")
-            descriptor.fragmentFunction = library.makeFunction(name: "wireFrag")
-            //            } else {
-            //                descriptor.vertexFunction = library.makeFunction(name: "wireframeVertex")
-            //                descriptor.fragmentFunction = library.makeFunction(name: "wireframeFragment")
-            //            }
-            
-            do {self.modelPipelineState = try device.makeRenderPipelineState(descriptor: descriptor)}
-            catch { fatalError("Could not create ModelPipelineState.") }
+        super.init(device: device, renderDestination: view)
+        
+        if project.resources["model"]! && project.model != nil {
+            updateModelPipeLineState()
         }
     }
     
@@ -109,8 +98,35 @@ final class CompositionHandler: RenderingHelper {
         else {
             return
         }
+        pointCloudUniformsBuffer[0].cameraResolution = simd_float2(Float(view.drawableSize.width), Float(view.drawableSize.height))
         
-        //        TODO: Check if triple buffering is needed to reach performance
+        if saveNextFrame {
+            let size = currentFrame!.getSize()
+            view.autoResizeDrawable = false
+            self.pointCloudUniformsBuffer[0].cameraResolution = simd_float2(
+                Float(size.width),
+                Float(size.height)
+            )
+            commandBuffer.addCompletedHandler { [weak self] commandBuffer in
+                if let self = self {
+                    self.pointCloudUniformsBuffer[0].cameraResolution = simd_float2(
+                        Float(self.view.drawableSize.width),
+                        Float(self.view.drawableSize.height)
+                    )
+                    self.saveNextFrame = false
+                    self.view.autoResizeDrawable = true
+                    
+                    DispatchQueue.global(qos: .background).async {
+                        DispatchQueue.main.async {
+                            if self.image != nil {
+                                let frameImage = UIImage(cgImage: self.image!)
+                                UIImageWriteToSavedPhotosAlbum(frameImage, nil, nil, nil)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         
         pointCloudUniformsBuffer[0].viewMatrix = currentViewMatrix!
         pointCloudUniformsBuffer[0].projectionMatrix = currentProjectionMatrix!
@@ -123,7 +139,7 @@ final class CompositionHandler: RenderingHelper {
             renderEncoder.setFragmentBuffer(rgbUniformsBuffer)
             renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(currentFrameTex), index: 0)
             renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
-
+            
             renderEncoder.setRenderPipelineState(particlePipelineState)
             renderEncoder.setVertexBuffer(pointCloudUniformsBuffer)
             renderEncoder.setVertexBuffer(pointsBuffer)
@@ -135,32 +151,39 @@ final class CompositionHandler: RenderingHelper {
             renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(currentFrameTex), index: 0)
             renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
             
+            renderEncoder.setRenderPipelineState(self.modelPipelineState!)
             if !project.resources["texture"]! {
-                //            wireframe
-                renderEncoder.setRenderPipelineState(self.modelPipelineState!)
                 renderEncoder.setTriangleFillMode(.lines)
-//                renderEncoder.setCullMode(.none)
-                let vertexBuffer = mesh!.vertexBuffers.first!
-                renderEncoder.setVertexBuffer(vertexBuffer.buffer, offset: vertexBuffer.offset, index: 0)
-                renderEncoder.setVertexBuffer(pointCloudUniformsBuffer.bufferContent, offset: 0, index: 1)
-                mesh!.submeshes.forEach{ submesh in
-//                    renderEncoder.setVertexBuffer(pointCloudUniformsBuffer)
-                    let indexBuffer = submesh.indexBuffer
-                    renderEncoder.drawIndexedPrimitives(
-                        type: submesh.primitiveType,
-                        indexCount: submesh.indexCount,
-                        indexType: submesh.indexType,
-                        indexBuffer: indexBuffer.buffer,
-                        indexBufferOffset: indexBuffer.offset
-                    )
-                }
+                print("noTex")
+            } else {
+                renderEncoder.setCullMode(MTLCullMode.none)
+                renderEncoder.setFragmentTexture(self.sketchTexture, index: 1)
             }
-            //            eeeeelse
+            let vertexBuffer = mesh!.vertexBuffers.first!
+            renderEncoder.setVertexBuffer(vertexBuffer.buffer, offset: vertexBuffer.offset, index: 0)
+            renderEncoder.setVertexBuffer(pointCloudUniformsBuffer.bufferContent, offset: 0, index: 1)
+            renderEncoder.setFragmentBuffer(pointCloudUniformsBuffer.bufferContent, offset: 0, index: 1)
+            mesh!.submeshes.forEach{ submesh in
+                let indexBuffer = submesh.indexBuffer
+                renderEncoder.drawIndexedPrimitives(
+                    type: submesh.primitiveType,
+                    indexCount: submesh.indexCount,
+                    indexType: submesh.indexType,
+                    indexBuffer: indexBuffer.buffer,
+                    indexBufferOffset: indexBuffer.offset
+                )
+            }
         }
         
         renderEncoder.endEncoding()
+        if saveNextFrame {
+            image = renderDestination.currentDrawable!.texture.toImage()
+        }
         commandBuffer.present(renderDestination.currentDrawable!)
         commandBuffer.commit()
+        if saveNextFrame {
+            commandBuffer.waitUntilCompleted()
+        }
         
         if let error = commandBuffer.error as NSError? {
             NSLog("%@", error)
@@ -169,56 +192,69 @@ final class CompositionHandler: RenderingHelper {
     
     func drawRectResized(size: CGSize) {
         viewportSize = size
+        pointCloudUniforms.cameraResolution = simd_float2(Float(view.drawableSize.width), Float(view.drawableSize.height))
+        pointCloudUniformsBuffer[0].cameraResolution = simd_float2(Float(view.drawableSize.width), Float(view.drawableSize.height))
     }
     
-    func loadModelForMetal() {
+    func updateModelPipeLineState() {
+        self.mesh = project.model
+        self.descriptor.vertexDescriptor = project.vertexDescriptor!
+        self.descriptor.vertexFunction = library.makeFunction(name: "modelVert")
+        if !project.resources["texture"]! && project.sketch != nil{
+            self.descriptor.fragmentFunction = library.makeFunction(name: "wireFrag")
+        } else {
+            let loader = MTKTextureLoader(device: device)
+            let textureLoaderOptions: [MTKTextureLoader.Option : Any] = [
+                .origin: MTKTextureLoader.Origin.bottomLeft
+            ]
+            do {
+                self.sketchTexture = try loader.newTexture(
+                    URL: project.folder!.appendingPathComponent(ScanProject.Constants.sketchName),
+                    options: textureLoaderOptions)
+            } catch {
+                fatalError("Could not load sketch for rendering")
+            }
+            self.descriptor.fragmentFunction = library.makeFunction(name: "sketchFrag")
+        }
         
+        do {self.modelPipelineState = try device.makeRenderPipelineState(descriptor: descriptor)}
+        catch { fatalError("Could not create ModelPipelineState.") }
+    }
+    
+    func saveFrame() {
+        self.saveNextFrame = true
     }
 }
 
-//model matrix
-extension float4x4 {
-    init(scaleBy s: Float) {
-        self.init(simd_float4(s, 0, 0, 0),
-                  simd_float4(0, s, 0, 0),
-                  simd_float4(0, 0, s, 0),
-                  simd_float4(0, 0, 0, 1))
+extension MTLTexture {
+
+    func bytes() -> UnsafeMutableRawPointer {
+        let width = self.width
+        let height   = self.height
+        let rowBytes = self.width * 4
+        let p = malloc(width * height * 4)
+
+        self.getBytes(p!, bytesPerRow: rowBytes, from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0)
+
+        return p!
     }
- 
-    init(rotationAbout axis: simd_float3, by angleRadians: Float) {
-        let x = axis.x, y = axis.y, z = axis.z
-        let c = cosf(angleRadians)
-        let s = sinf(angleRadians)
-        let t = 1 - c
-        self.init(simd_float4( t * x * x + c,     t * x * y + z * s, t * x * z - y * s, 0),
-                  simd_float4( t * x * y - z * s, t * y * y + c,     t * y * z + x * s, 0),
-                  simd_float4( t * x * z + y * s, t * y * z - x * s,     t * z * z + c, 0),
-                  simd_float4(                 0,                 0,                 0, 1))
-    }
- 
-    init(translationBy t: simd_float3) {
-        self.init(simd_float4(   1,    0,    0, 0),
-                  simd_float4(   0,    1,    0, 0),
-                  simd_float4(   0,    0,    1, 0),
-                  simd_float4(t[0], t[1], t[2], 1))
-    }
- 
-    init(perspectiveProjectionFov fovRadians: Float, aspectRatio aspect: Float, nearZ: Float, farZ: Float) {
-        let yScale = 1 / tan(fovRadians * 0.5)
-        let xScale = yScale / aspect
-        let zRange = farZ - nearZ
-        let zScale = -(farZ + nearZ) / zRange
-        let wzScale = -2 * farZ * nearZ / zRange
- 
-        let xx = xScale
-        let yy = yScale
-        let zz = zScale
-        let zw = Float(-1)
-        let wz = wzScale
- 
-        self.init(simd_float4(xx,  0,  0,  0),
-                  simd_float4( 0, yy,  0,  0),
-                  simd_float4( 0,  0, zz, zw),
-                  simd_float4( 0,  0, wz,  0))
+
+    func toImage() -> CGImage? {
+        let p = bytes()
+
+        let pColorSpace = CGColorSpaceCreateDeviceRGB()
+
+        let rawBitmapInfo = CGImageAlphaInfo.noneSkipFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        let bitmapInfo:CGBitmapInfo = CGBitmapInfo(rawValue: rawBitmapInfo)
+
+        let selftureSize = self.width * self.height * 4
+        let rowBytes = self.width * 4
+        let releaseMaskImagePixelData: CGDataProviderReleaseDataCallback = { (info: UnsafeMutableRawPointer?, data: UnsafeRawPointer, size: Int) -> () in
+            return
+        }
+        let provider = CGDataProvider(dataInfo: nil, data: p, size: selftureSize, releaseData: releaseMaskImagePixelData)
+        let cgImageRef = CGImage(width: self.width, height: self.height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: rowBytes, space: pColorSpace, bitmapInfo: bitmapInfo, provider: provider!, decode: nil, shouldInterpolate: true, intent: CGColorRenderingIntent.defaultIntent)!
+
+        return cgImageRef
     }
 }

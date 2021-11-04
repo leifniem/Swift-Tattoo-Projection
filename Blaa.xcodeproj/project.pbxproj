@@ -12,8 +12,6 @@
 		8C2B4D5026F8F93F000F41D0 /* ProjectsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2B4D4F26F8F93F000F41D0 /* ProjectsManager.swift */; };
 		8C2C6BAB272FE3E5005341DE /* StickyEncoding in Frameworks */ = {isa = PBXBuildFile; productRef = 8C2C6BAA272FE3E5005341DE /* StickyEncoding */; };
 		8C2F755726FDFB2600986007 /* LimitHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2F755626FDFB2600986007 /* LimitHandler.swift */; };
-		8C552C5D271B0E9300D80949 /* LeastSquaresFunctions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C552C5C271B0E9300D80949 /* LeastSquaresFunctions.swift */; };
-		8C552C5F271B3F3500D80949 /* Mesh.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C552C5E271B3F3500D80949 /* Mesh.swift */; };
 		8C6F2CF226FC8F1D0058840E /* SingleProjectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C6F2CF126FC8F1D0058840E /* SingleProjectViewController.swift */; };
 		8C72D34B271F195A00BF203A /* PythonKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8C72D34A271F195A00BF203A /* PythonKit */; };
 		8C888B632709BD4700C1B3AA /* ExtrasJSON in Frameworks */ = {isa = PBXBuildFile; productRef = 8C888B622709BD4700C1B3AA /* ExtrasJSON */; };
@@ -42,8 +40,6 @@
 		8C2B4D4D26F8DAD0000F41D0 /* ProjectListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectListViewController.swift; sourceTree = "<group>"; };
 		8C2B4D4F26F8F93F000F41D0 /* ProjectsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsManager.swift; sourceTree = "<group>"; };
 		8C2F755626FDFB2600986007 /* LimitHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimitHandler.swift; sourceTree = "<group>"; };
-		8C552C5C271B0E9300D80949 /* LeastSquaresFunctions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LeastSquaresFunctions.swift; sourceTree = "<group>"; };
-		8C552C5E271B3F3500D80949 /* Mesh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mesh.swift; sourceTree = "<group>"; };
 		8C6F2CF126FC8F1D0058840E /* SingleProjectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleProjectViewController.swift; sourceTree = "<group>"; };
 		8C72D34C271F249500BF203A /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
 		8CA716EE26F2129A00D5993D /* VideoHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoHandler.swift; sourceTree = "<group>"; };
@@ -109,14 +105,12 @@
 		8CE4A48726E78AC200A4A217 /* Model */ = {
 			isa = PBXGroup;
 			children = (
-				8C552C5C271B0E9300D80949 /* LeastSquaresFunctions.swift */,
 				E7B7223A24807ACA002E43E8 /* MetalBuffer.swift */,
 				E7B7223C24809D1E002E43E8 /* Helpers.swift */,
 				8CE4A48B26E78B4800A4A217 /* ScanProject.swift */,
 				8CE4A48D26E7AAE000A4A217 /* CPUParticle.swift */,
 				8C2B4D4F26F8F93F000F41D0 /* ProjectsManager.swift */,
 				8CBFA4F426FE345100BFA7EA /* RendererExtension.swift */,
-				8C552C5E271B3F3500D80949 /* Mesh.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -298,11 +292,9 @@
 				E73DD13624636FEF00D77039 /* ScanHandler.swift in Sources */,
 				8CAE27ED26F0CF6500E26491 /* LimitViewController.swift in Sources */,
 				8C2F755726FDFB2600986007 /* LimitHandler.swift in Sources */,
-				8C552C5D271B0E9300D80949 /* LeastSquaresFunctions.swift in Sources */,
 				8CBFA4F326FE1D9900BFA7EA /* CompositionHandler.swift in Sources */,
 				8C2B4D4E26F8DAD0000F41D0 /* ProjectListViewController.swift in Sources */,
 				8C2B4D5026F8F93F000F41D0 /* ProjectsManager.swift in Sources */,
-				8C552C5F271B3F3500D80949 /* Mesh.swift in Sources */,
 				8CD01CB8270C82A400BFBB85 /* ReconstructionViewController.swift in Sources */,
 				8CE4A48C26E78B4800A4A217 /* ScanProject.swift in Sources */,
 				E73DD13824636FEF00D77039 /* ScanViewController.swift in Sources */,

@@ -31,6 +31,7 @@ class ReconstructionHandler {
         NumPySupport.sitePackagesURL.insertPythonPath()
         let o3d = Python.import("open3d")
         let np = Python.import("numpy")
+        let ma = Python.import("numpy.ma")
         
         
         var pcdPositions = [[Float]]()
@@ -69,14 +70,27 @@ class ReconstructionHandler {
             let result = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth: 9, scale: 1.5)
             var pyMesh = result[0]
             
-//            TODO: remove low density vertices / triangles
+//            Filter by density function
             let densities = result[1]
             let quantile = np.quantile(densities, 0.2)
             let mask = np.less(densities, quantile)
             pyMesh.remove_vertices_by_mask(mask)
             
+//            remove all but biggest mesh
             pyMesh = pyMesh.crop(meshbb)
-            pyMesh = pyMesh.filter_smooth_laplacian(number_of_iterations: 3)
+            let clustering = pyMesh.cluster_connected_triangles()
+            let triClusters = np.asarray(clustering[0])
+            let clusterVertCounts = np.asarray(clustering[1])
+            let clusterMask = ma.masked_greater(clusterVertCounts[triClusters], 100)
+//            var clusterMask = [Bool]()
+//            for element in triClusters {
+//                clusterMask.append( Int(clusterVertCounts[Int(element)!])! > 100 )
+//            }
+            pyMesh.remove_triangles_by_mask(clusterMask)
+            
+//            smooth mesh
+            pyMesh = pyMesh.filter_smooth_taubin(number_of_iterations: 3)
+            pyMesh.compute_vertex_normals()
             pyMesh.compute_triangle_normals()
             pyMesh.orient_triangles()
             
@@ -86,6 +100,8 @@ class ReconstructionHandler {
             pyMesh.remove_duplicated_vertices()
             pyMesh.remove_non_manifold_edges()
             pyMesh.remove_unreferenced_vertices()
+            
+//            TODO Remove all submeshes but the one with the most polygons
             
             o3d.io.write_triangle_mesh(project.modelPath!.path, pyMesh, write_vertex_colors: false)
             project.setFileWritten()

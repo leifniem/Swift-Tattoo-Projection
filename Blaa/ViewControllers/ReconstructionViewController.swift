@@ -21,19 +21,6 @@ class ReconstructionViewController: UIViewController {
             statusLabel.text = "Failed :((("
             fatalError("Failed to create Mesh.")
         }
-//        statusLabel.removeFromSuperview()
-//        let scene = try! SCNScene(url: project!.modelPath!)
-//        let cameraNode = SCNNode()
-//        cameraNode.camera = SCNCamera()
-//        cameraNode.position = SCNVector3(project!.boundingBox!.center - simd_float3(0,0,1))
-//        let lightNode = SCNNode()
-//        lightNode.light = SCNLight()
-//        lightNode.light!.type = .omni
-//        lightNode.position = SCNVector3(0,1,1)
-//        scene.rootNode.addChildNode(cameraNode)
-//        scene.rootNode.addChildNode(lightNode)
-//        scnView.scene = scene
-//        scnView.allowsCameraControl = true
         let projectView = self.navigationController!.viewControllers.first(where: { type(of: $0) == SingleProjectViewController.self })
         if projectView != nil {
             self.navigationController?.popToViewController(projectView!, animated: true)

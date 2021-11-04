@@ -21,7 +21,6 @@ struct MeshVertexOut {
     float4 position [[position]];
     float4 eyeNormal;
     float4 eyePos;
-    float4 color;
     float2 texCoord;
 };
 
@@ -39,6 +38,7 @@ constant auto yCbCrToRGB = float4x4(float4(+1.0000f, +1.0000f, +1.0000f, +0.0000
                                     float4(-0.7010f, +0.5291f, -0.8860f, +1.0000f));
 constant float2 viewVertices[] = { float2(-1, 1), float2(-1, -1), float2(1, 1), float2(1, -1) };
 constant float2 viewTexCoords[] = { float2(0, 0), float2(0, 1), float2(1, 0), float2(1, 1) };
+constant float3 lumCoeff = float3(0.2126, 0.7152, 0.0722);
 
 /// Retrieves the world position of a specified camera point with depth
 static simd_float4 worldPoint(simd_float2 cameraPoint, float depth, matrix_float3x3 cameraIntrinsicsInversed, matrix_float4x4 localToWorld) {
@@ -88,7 +88,6 @@ vertex RGBVertexOut rgbVertex(uint vertexID [[vertex_id]],
     RGBVertexOut out;
     out.position = float4(viewVertices[vertexID], 0, 1);
     out.texCoord = texCoord.xy;
-    
     return out;
 }
 
@@ -171,15 +170,14 @@ fragment float4 particleFragment(ParticleVertexOut in [[stage_in]],
     return in.color;
 }
 
-vertex MeshVertexOut wireVert(MeshVertexIn in [[stage_in]],
-                              constant PointCloudUniforms &uniforms [[buffer(1)]],
-                              uint vertexId [[vertex_id]]
-                              ) {
+vertex MeshVertexOut modelVert(MeshVertexIn in [[stage_in]],
+                               constant PointCloudUniforms &uniforms [[buffer(1)]],
+                               uint vertexId [[vertex_id]]
+                               ) {
     MeshVertexOut out;
-    out.position = uniforms.projectionMatrix * uniforms.viewMatrix * uniforms.modelMatrix * in.position;
-    out.color = float4(1);
-    out.eyeNormal = uniforms.viewMatrix * uniforms.modelMatrix * in.normal;
-    out.eyePos = uniforms.viewMatrix * uniforms.modelMatrix * in.position;
+    out.position = uniforms.projectionMatrix * uniforms.viewMatrix * in.position;
+    out.eyeNormal = uniforms.viewMatrix * in.normal;
+    out.eyePos = uniforms.viewMatrix * in.position;
     out.texCoord = in.texCoords;
     
     return out;
@@ -188,5 +186,58 @@ vertex MeshVertexOut wireVert(MeshVertexIn in [[stage_in]],
 fragment float4 wireFrag(MeshVertexOut in [[stage_in]],
                          //                                  texture2d<float, access::sample> imageTextureBGRA [[texture(0)]],
                          const float2 coords [[point_coord]]) {
-    return in.color;
+    return float4(1);
+}
+
+#define Vibrance -.1
+
+float3 overlay(float3 base, float3 blend) {
+    float3 limit = step(blend, 0.5);
+    return mix(2.0*base*blend, 1.0-2.0*(1.0-base)*(1.0-blend), limit);
+}
+
+float3 multiply(float3 a, float3 b) {
+    return a*b;
+}
+
+float3 screen(float3 a, float3 b) {
+    return 1 - (1 - a) * (1 - b);
+}
+
+float3 toneDown(float3 sketch) {
+    float3 color = sketch;
+    float luma = dot(lumCoeff, color.rgb);
+
+    float maxColor = max(max(color.r,color.g),color.b);
+    float minColor = min(min(color.r,color.g),color.b);
+
+    float colorSaturation = maxColor - minColor;
+
+    color = mix(luma, color, (1.0 + (Vibrance * (1.0 - (sign(Vibrance) * colorSaturation)))));
+//    color.a = color.a - pow(colorSaturation * luma, 2) * .2;
+    return color;
+}
+
+fragment float4 sketchFrag(MeshVertexOut in [[stage_in]],
+                           texture2d<float, access::sample> cameraImage [[texture(0)]],
+                           texture2d<float, access::sample> sketch [[texture(1)]],
+                           constant PointCloudUniforms &uniforms [[buffer(1)]]
+                           ) {
+    float2 sampleSpot = float2(
+                               in.position.y / uniforms.cameraResolution.y,
+                               1 - in.position.x / uniforms.cameraResolution.x
+                               );
+    float4 sketchColor = sketch.sample(colorSampler, in.texCoord);
+    if (sketchColor.a > 0) {
+        float4 cameraColor = cameraImage.sample(colorSampler, sampleSpot);
+//        float3 mixed = overlay(float3(cameraColor.b), sketchColor.rgb);
+        float3 mixed = sketchColor.rgb;
+        mixed = toneDown(mixed);
+        mixed = multiply(mixed, float3(cameraColor.b));
+        mixed = screen(mixed, float3(pow(cameraColor.b, 3)));
+        float3 luma = dot(sketchColor.rgb, lumCoeff);
+        return float4(mixed, sketchColor.a - pow(luma.r, 2) * .4);
+    } else {
+        return float4(0);
+    }
 }

@@ -22,7 +22,8 @@ class ScanProject : Codable {
         static let metaName : String = "meta.skinmeta"
         static let dataName : String = "data.skin"
         static let thumbnailName : String = "thumb.jpg"
-        static let modelName : String = "model.stl"
+        static let sketchName : String = "sketch.PNG"
+        static let modelName : String = "model.obj"
     }
     
     var title: String!
@@ -41,8 +42,8 @@ class ScanProject : Codable {
     private var rawVideoData: [CVPixelBuffer]?
     private var thumb: UIImage?
     private var bbox: Box?
-    //    private var sketchTexture: UIImage?
-    //    private var uvMap: UIImage?
+    private var sketchTexture: UIImage?
+//        private var uvMap: UIImage?
     
     var id: UUID {
         get {return self.uuid}
@@ -100,6 +101,9 @@ class ScanProject : Codable {
     }
     var vertexDescriptor: MTLVertexDescriptor? {
         return self.modelVertexDescriptor
+    }
+    var sketch: UIImage? {
+        return self.sketchTexture
     }
     
     enum ScanProjectMetaCodingKeys: String, CodingKey {
@@ -273,6 +277,7 @@ class ScanProject : Codable {
     func loadFullData() {
         self.readVideo()
         if self.hasModel{ self.readModel() }
+        if self.hasTexture{ self.readSketch() }
         self.decodeSpatial()
     }
     
@@ -357,6 +362,37 @@ class ScanProject : Codable {
         } catch {
             fatalError("\(error)")
         }
+    }
+    
+//    MARK: - SKETCH HANDLING
+    func readSketch() {
+        do {
+            self.sketchTexture = UIImage(data: try Data(
+                contentsOf: folderURL.appendingPathComponent(Constants.sketchName)
+            ))
+        } catch {
+            fatalError("Could not load sketch from disk.")
+        }
+    }
+    
+    func setSketch(_ image: UIImage) {
+        self.sketchTexture = image
+        if let imageData = image.pngData() {
+            do{
+                try imageData.write(to: folderURL.appendingPathComponent(Constants.sketchName))
+            } catch {
+                fatalError("Could not write sketch file to disk.")
+            }
+        }
+        self.hasTexture = true
+        self.triggerModified()
+    }
+    
+    func deleteSketch() {
+        try? FileManager.default.removeItem(at: folderURL.appendingPathComponent(Constants.sketchName))
+        self.sketchTexture = nil
+        self.hasTexture = false
+        self.triggerModified()
     }
     
     // MARK: - UV MAPPING
