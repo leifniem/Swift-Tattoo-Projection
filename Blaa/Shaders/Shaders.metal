@@ -19,8 +19,7 @@ struct MeshVertexIn {
 
 struct MeshVertexOut {
     float4 position [[position]];
-    float4 eyeNormal;
-    float4 eyePos;
+    float4 color;
     float2 texCoord;
 };
 
@@ -109,6 +108,14 @@ fragment float4 rgbFragmentHalfOpacity(RGBVertexOut in [[stage_in]],
     return float4(sampledColor * .5, 1.0);
 }
 
+fragment float4 rgbFragmentFullOpacity(RGBVertexOut in [[stage_in]],
+                                       constant RGBUniforms &uniforms [[buffer(0)]],
+                                       texture2d<float, access::sample> imageTextureBGRA [[texture(0)]]
+                                       ) {
+    float3 sampledColor = imageTextureBGRA.sample(colorSampler, in.texCoord.xy).rgb;
+    return float4(sampledColor, 1.0);
+}
+
 vertex ParticleVertexOut particleVertex(uint vertexID [[vertex_id]],
                                         constant PointCloudUniforms &uniforms [[buffer(kPointCloudUniforms)]],
                                         constant ParticleUniforms *particleUniforms [[buffer(kParticleUniforms)]]) {
@@ -121,7 +128,7 @@ vertex ParticleVertexOut particleVertex(uint vertexID [[vertex_id]],
     const auto visibility = confidence >= uniforms.confidenceThreshold;
     
     // animate and project the point
-    float4 projectedPosition = uniforms.projectionMatrix * uniforms.viewMatrix * float4(position, 1.0);
+    float4 projectedPosition = uniforms.viewProjectionMatrix * float4(position, 1.0);
     const float pointSize = max(uniforms.particleSize / max(1.0, projectedPosition.z), 2.0);
     projectedPosition /= projectedPosition.w;
     
@@ -152,7 +159,7 @@ vertex ParticleVertexOut particleVertexLimited(uint vertexID [[vertex_id]],
     lessThan(boundingBox.boxMin, position) && lessThan(position, boundingBox.boxMax);
     
     // animate and project the point
-    float4 projectedPosition = uniforms.projectionMatrix * uniforms.viewMatrix * float4(position, 1.0);
+    float4 projectedPosition = uniforms.viewProjectionMatrix * float4(position, 1.0);
     const float pointSize = max(uniforms.particleSize / max(1.0, projectedPosition.z), 2.0);
     projectedPosition /= projectedPosition.w;
     
@@ -171,30 +178,33 @@ fragment float4 particleFragment(ParticleVertexOut in [[stage_in]],
 }
 
 vertex MeshVertexOut modelVert(MeshVertexIn in [[stage_in]],
-                               constant PointCloudUniforms &uniforms [[buffer(1)]],
-                               uint vertexId [[vertex_id]]
-                               ) {
+                               constant PointCloudUniforms &uniforms [[buffer(1)]]) {
     MeshVertexOut out;
-    out.position = uniforms.projectionMatrix * uniforms.viewMatrix * in.position;
-    out.eyeNormal = uniforms.viewMatrix * in.normal;
-    out.eyePos = uniforms.viewMatrix * in.position;
+    out.position = uniforms.viewProjectionMatrix * in.position;
     out.texCoord = in.texCoords;
     
     return out;
 }
 
 fragment float4 wireFrag(MeshVertexOut in [[stage_in]],
-                         //                                  texture2d<float, access::sample> imageTextureBGRA [[texture(0)]],
                          const float2 coords [[point_coord]]) {
     return float4(1);
 }
 
-#define Vibrance -.1
-
-float3 overlay(float3 base, float3 blend) {
-    float3 limit = step(blend, 0.5);
-    return mix(2.0*base*blend, 1.0-2.0*(1.0-base)*(1.0-blend), limit);
+vertex MeshVertexOut UVMapVert(MeshVertexIn in [[stage_in]]) {
+    MeshVertexOut out;
+    out.position = float4(in.texCoords * 2 - 1.0, 0, 1);
+    out.color = in.color;
+    out.texCoord = in.texCoords;
+    return out;
 }
+
+fragment float4 UVMapFrag(MeshVertexOut in [[stage_in]],
+                         const float2 coords [[point_coord]]) {
+    return float4(in.color.rgb * 0.5, 1);
+}
+
+#define Vibrance -.1
 
 float3 multiply(float3 a, float3 b) {
     return a*b;
@@ -204,8 +214,8 @@ float3 screen(float3 a, float3 b) {
     return 1 - (1 - a) * (1 - b);
 }
 
-float3 toneDown(float3 sketch) {
-    float3 color = sketch;
+float4 toneDown(float4 sketch) {
+    float4 color = sketch;
     float luma = dot(lumCoeff, color.rgb);
 
     float maxColor = max(max(color.r,color.g),color.b);
@@ -214,8 +224,13 @@ float3 toneDown(float3 sketch) {
     float colorSaturation = maxColor - minColor;
 
     color = mix(luma, color, (1.0 + (Vibrance * (1.0 - (sign(Vibrance) * colorSaturation)))));
-//    color.a = color.a - pow(colorSaturation * luma, 2) * .2;
+    color.a = pow(color.a, 1-colorSaturation);
     return color;
+}
+
+float3 deSat(float3 in, float blend) {
+    float luma = dot(lumCoeff, in);
+    return mix(luma, in, blend);
 }
 
 fragment float4 sketchFrag(MeshVertexOut in [[stage_in]],
@@ -230,13 +245,10 @@ fragment float4 sketchFrag(MeshVertexOut in [[stage_in]],
     float4 sketchColor = sketch.sample(colorSampler, in.texCoord);
     if (sketchColor.a > 0) {
         float4 cameraColor = cameraImage.sample(colorSampler, sampleSpot);
-//        float3 mixed = overlay(float3(cameraColor.b), sketchColor.rgb);
-        float3 mixed = sketchColor.rgb;
-        mixed = toneDown(mixed);
-        mixed = multiply(mixed, float3(cameraColor.b));
-        mixed = screen(mixed, float3(pow(cameraColor.b, 3)));
-        float3 luma = dot(sketchColor.rgb, lumCoeff);
-        return float4(mixed, sketchColor.a - pow(luma.r, 2) * .4);
+        float4 mixed = toneDown(sketchColor);
+        float3 mixRGB = multiply(mixed.rgb, float3(cameraColor.r));
+        mixRGB = screen(mixRGB, float3(pow(cameraColor.b, 2.5)));
+        return float4(mixRGB, mixed.a);
     } else {
         return float4(0);
     }

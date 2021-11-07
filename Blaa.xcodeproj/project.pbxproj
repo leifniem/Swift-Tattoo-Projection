@@ -7,10 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		8C2B4D4C26F8D68A000F41D0 /* ProjectListView.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8C2B4D4B26F8D68A000F41D0 /* ProjectListView.storyboard */; };
+		8C01C069273564B90088F167 /* UVMapBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C01C068273564B90088F167 /* UVMapBuilder.swift */; };
+		8C2B4D4C26F8D68A000F41D0 /* Screens.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8C2B4D4B26F8D68A000F41D0 /* Screens.storyboard */; };
 		8C2B4D4E26F8DAD0000F41D0 /* ProjectListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2B4D4D26F8DAD0000F41D0 /* ProjectListViewController.swift */; };
 		8C2B4D5026F8F93F000F41D0 /* ProjectsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2B4D4F26F8F93F000F41D0 /* ProjectsManager.swift */; };
-		8C2C6BAB272FE3E5005341DE /* StickyEncoding in Frameworks */ = {isa = PBXBuildFile; productRef = 8C2C6BAA272FE3E5005341DE /* StickyEncoding */; };
 		8C2F755726FDFB2600986007 /* LimitHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2F755626FDFB2600986007 /* LimitHandler.swift */; };
 		8C6F2CF226FC8F1D0058840E /* SingleProjectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C6F2CF126FC8F1D0058840E /* SingleProjectViewController.swift */; };
 		8C72D34B271F195A00BF203A /* PythonKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8C72D34A271F195A00BF203A /* PythonKit */; };
@@ -36,7 +36,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		8C2B4D4B26F8D68A000F41D0 /* ProjectListView.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = ProjectListView.storyboard; sourceTree = "<group>"; };
+		8C01C068273564B90088F167 /* UVMapBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UVMapBuilder.swift; sourceTree = "<group>"; };
+		8C2B4D4B26F8D68A000F41D0 /* Screens.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Screens.storyboard; sourceTree = "<group>"; };
 		8C2B4D4D26F8DAD0000F41D0 /* ProjectListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectListViewController.swift; sourceTree = "<group>"; };
 		8C2B4D4F26F8F93F000F41D0 /* ProjectsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsManager.swift; sourceTree = "<group>"; };
 		8C2F755626FDFB2600986007 /* LimitHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimitHandler.swift; sourceTree = "<group>"; };
@@ -71,7 +72,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8C2C6BAB272FE3E5005341DE /* StickyEncoding in Frameworks */,
 				8C9F85F426FA00A1002980D8 /* Gzip in Frameworks */,
 				8C888B632709BD4700C1B3AA /* ExtrasJSON in Frameworks */,
 				8C72D34B271F195A00BF203A /* PythonKit in Frameworks */,
@@ -111,6 +111,7 @@
 				8CE4A48D26E7AAE000A4A217 /* CPUParticle.swift */,
 				8C2B4D4F26F8F93F000F41D0 /* ProjectsManager.swift */,
 				8CBFA4F426FE345100BFA7EA /* RendererExtension.swift */,
+				8C01C068273564B90088F167 /* UVMapBuilder.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -140,7 +141,7 @@
 			isa = PBXGroup;
 			children = (
 				E73DD13E24636FF100D77039 /* LaunchScreen.storyboard */,
-				8C2B4D4B26F8D68A000F41D0 /* ProjectListView.storyboard */,
+				8C2B4D4B26F8D68A000F41D0 /* Screens.storyboard */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -217,7 +218,6 @@
 				8C888B622709BD4700C1B3AA /* ExtrasJSON */,
 				8C72D34A271F195A00BF203A /* PythonKit */,
 				8CC19E4827217586009E0E57 /* Open3D-iOS */,
-				8C2C6BAA272FE3E5005341DE /* StickyEncoding */,
 			);
 			productName = SceneDepthDemo;
 			productReference = E73DD12D24636FEF00D77039 /* Point Cloud.app */;
@@ -252,7 +252,6 @@
 				8C888B612709BD4700C1B3AA /* XCRemoteSwiftPackageReference "swift-extras-json" */,
 				8C72D349271F195A00BF203A /* XCRemoteSwiftPackageReference "PythonKit" */,
 				8CC19E4727217586009E0E57 /* XCRemoteSwiftPackageReference "Open3D-iOS" */,
-				8C2C6BA9272FE3E5005341DE /* XCRemoteSwiftPackageReference "sticky-encoding" */,
 			);
 			productRefGroup = E73DD12E24636FEF00D77039 /* Products */;
 			projectDirPath = "";
@@ -269,7 +268,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E73DD14024636FF100D77039 /* LaunchScreen.storyboard in Resources */,
-				8C2B4D4C26F8D68A000F41D0 /* ProjectListView.storyboard in Resources */,
+				8C2B4D4C26F8D68A000F41D0 /* Screens.storyboard in Resources */,
 				E73DD13D24636FF100D77039 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -289,6 +288,7 @@
 				8CD01CB6270C67B300BFBB85 /* ReconstructionHandler.swift in Sources */,
 				E7B7223B24807ACA002E43E8 /* MetalBuffer.swift in Sources */,
 				8CBFA4F526FE345100BFA7EA /* RendererExtension.swift in Sources */,
+				8C01C069273564B90088F167 /* UVMapBuilder.swift in Sources */,
 				E73DD13624636FEF00D77039 /* ScanHandler.swift in Sources */,
 				8CAE27ED26F0CF6500E26491 /* LimitViewController.swift in Sources */,
 				8C2F755726FDFB2600986007 /* LimitHandler.swift in Sources */,
@@ -520,14 +520,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		8C2C6BA9272FE3E5005341DE /* XCRemoteSwiftPackageReference "sticky-encoding" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/hlemai/sticky-encoding";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
 		8C72D349271F195A00BF203A /* XCRemoteSwiftPackageReference "PythonKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pvieito/PythonKit";
@@ -563,11 +555,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		8C2C6BAA272FE3E5005341DE /* StickyEncoding */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 8C2C6BA9272FE3E5005341DE /* XCRemoteSwiftPackageReference "sticky-encoding" */;
-			productName = StickyEncoding;
-		};
 		8C72D34A271F195A00BF203A /* PythonKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 8C72D349271F195A00BF203A /* XCRemoteSwiftPackageReference "PythonKit" */;

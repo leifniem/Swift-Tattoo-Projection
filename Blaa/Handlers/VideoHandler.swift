@@ -91,7 +91,6 @@ class VideoHandler {
     }
     
     func readVideo(url: URL) -> [CVPixelBuffer] {
-//        https://stackoverflow.com/questions/49390728/how-to-get-frames-from-a-local-video-file-in-swift
         var frames: [CVPixelBuffer] = []
         
         let asset = AVAsset(url: url)

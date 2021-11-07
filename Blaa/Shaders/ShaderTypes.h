@@ -37,8 +37,7 @@ struct Box {
 };
 
 struct PointCloudUniforms {
-    matrix_float4x4 viewMatrix;
-    matrix_float4x4 projectionMatrix;
+    matrix_float4x4 viewProjectionMatrix;
     matrix_float4x4 localToWorld;
     matrix_float3x3 cameraIntrinsicsInversed;
     simd_float2 cameraResolution;

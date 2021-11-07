@@ -1,5 +1,6 @@
 import UIKit
 import MetalKit
+import SwiftUI
 
 class SingleProjectViewController: UIViewController, MTKViewDelegate, UIImagePickerControllerDelegate & UINavigationControllerDelegate {
     
@@ -8,9 +9,13 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate, UIImagePic
     @IBOutlet weak var uvPreview: UIImageView!
     @IBOutlet weak var sketchPreview: UIImageView!
     @IBOutlet weak var generateModelButton: UIButton!
-    @IBOutlet weak var playButton: UIImageView!
+    @IBOutlet weak var playButton: UIButton!
     @IBOutlet weak var pickImageButton: UIButton!
     @IBOutlet weak var exportFrameButton: UIButton!
+    @IBOutlet weak var exportUVButton: UIButton!
+    @IBOutlet weak var removeSketchButton: UIButton!
+    @IBOutlet weak var removeModelButton: UIButton!
+    @IBOutlet weak var titleField: UITextField!
     
     var project: ScanProject?
     private var compositionHandler: CompositionHandler!
@@ -18,7 +23,9 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate, UIImagePic
     private let pickerController = UIImagePickerController()
     
     override func viewDidAppear(_ animated: Bool) {
-        compositionHandler.updateModelPipeLineState()
+        if (project?.resources["model"])! && project?.model != nil{
+            compositionHandler.updateModelPipeLineState()
+        }
     }
     
     override func viewDidLoad() {
@@ -34,12 +41,16 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate, UIImagePic
         compositionView.contentScaleFactor = 1
         compositionView.delegate = self
         compositionView.preferredFramesPerSecond = 30
-        compositionHandler = CompositionHandler(device: device, view: compositionView, project: project!)
+        compositionHandler = CompositionHandler(device: device, view: compositionView, project: project!, timeline: videoTimeSlider)
         navigationItem.title = project!.title
+        titleField.text = project?.title
         compositionHandler.drawRectResized(size: compositionView.bounds.size)
         
         if project?.sketch != nil {
             self.sketchPreview.image = project?.sketch
+        }
+        if project?.uvAtlas != nil {
+            self.uvPreview.image = project?.uvAtlas
         }
         
         pickerController.delegate = self
@@ -47,8 +58,12 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate, UIImagePic
         pickerController.sourceType = .photoLibrary
         
         videoTimeSlider.addTarget(self, action: #selector(timelineValueChange), for: .valueChanged)
+        playButton.addTarget(self, action: #selector(togglePlayState), for: .touchUpInside)
         pickImageButton.addTarget(self, action: #selector(openGalleryPicker), for: .touchUpInside)
         exportFrameButton.addTarget(self, action: #selector(saveFrame), for: .touchUpInside)
+        exportUVButton.addTarget(self, action: #selector(exportUV), for: .touchUpInside)
+        removeSketchButton.addTarget(self, action: #selector(removeSketch), for: .touchUpInside)
+        titleField.addTarget(self, action: #selector(changeTitle), for: .editingDidEnd)
     }
     
     
@@ -63,6 +78,7 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate, UIImagePic
     
     @objc func timelineValueChange () {
         self.isPlaying = false
+        compositionHandler.togglePlayState(value: false)
         compositionHandler.setPlayBackFrame(value: videoTimeSlider.value)
     }
     
@@ -70,13 +86,32 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate, UIImagePic
         self.compositionHandler.saveFrame()
     }
     
+    @objc func exportUV () {
+        uvPreview.image = self.compositionHandler.saveUV()
+    }
+    
+    @objc func changeTitle () {
+        project?.setTitle(titleField.text!)
+    }
+    
+    @objc func removeSketch () {
+        project?.deleteSketch()
+        compositionHandler.updateModelPipeLineState()
+        sketchPreview.image = nil
+    }
+    
+    @objc func togglePlayState() {
+        compositionHandler.togglePlayState()
+    }
+    
     public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-        print("Hi")
         guard let image = info[.originalImage] as? UIImage else {
             return
         }
-        print(image)
         project?.setSketch(image)
+        sketchPreview.image = image
+        compositionHandler.updateModelPipeLineState()
+        dismiss(animated: true, completion: nil)
     }
     
     @objc func openGalleryPicker() {
@@ -86,6 +121,14 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate, UIImagePic
     override func prepare(for segue: UIStoryboardSegue, sender: Any?)
     {
         if segue.destination is LimitViewController {
+            if project?.pointCloud == nil || project?.pointCloud!.count == 0 {
+                project!.readPointCloud()
+            }
+            if (project?.pointCloud!.first!.color.x)! <= 1 {
+                project?.pointCloud!.forEach{ point in
+                    point.color += 255.0
+                }
+            }
             let lvc = segue.destination as? LimitViewController
             lvc?.project = self.project
         }

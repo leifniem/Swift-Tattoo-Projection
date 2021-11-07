@@ -19,6 +19,7 @@ class RenderingHelper {
     private lazy var textureCache = self.makeTextureCache()
     lazy var yCbCrToRGBPipelineState = makeYCbCrToRGBPipelineState()!
     lazy var rgbHalfOpacityPipelineState = makeRGBHalfOpacityPipelineState()!
+    lazy var rgbOpaquePipelineState = makeRGBOpaquePipelineState()!
     lazy var particlePipelineState = makeParticlePipelineState()!
     lazy var limitedParticlePipelineState = makeLimitedParticlePipelineState()!
     let relaxedStencilState: MTLDepthStencilState
@@ -97,6 +98,21 @@ class RenderingHelper {
     func makeRGBHalfOpacityPipelineState() -> MTLRenderPipelineState? {
         guard let vertexFunction = library.makeFunction(name: "rgbVertex"),
               let fragmentFunction = library.makeFunction(name: "rgbFragmentHalfOpacity") else {
+                  return nil
+              }
+        
+        let descriptor = MTLRenderPipelineDescriptor()
+        descriptor.vertexFunction = vertexFunction
+        descriptor.fragmentFunction = fragmentFunction
+        descriptor.depthAttachmentPixelFormat = renderDestination.depthStencilPixelFormat
+        descriptor.colorAttachments[0].pixelFormat = renderDestination.colorPixelFormat
+        
+        return try? device.makeRenderPipelineState(descriptor: descriptor)
+    }
+    
+    func makeRGBOpaquePipelineState() -> MTLRenderPipelineState? {
+        guard let vertexFunction = library.makeFunction(name: "rgbVertex"),
+              let fragmentFunction = library.makeFunction(name: "rgbFragmentFullOpacity") else {
                   return nil
               }
         

@@ -32,6 +32,25 @@ class ProjectListViewCell : UICollectionViewCell {
         gradient.frame = thumbnail.bounds
         super.layoutSublayers(of: self.layer)
     }
+    
+    override var isSelected: Bool {
+        didSet{
+            if self.isSelected {
+                UIView.animate(withDuration: 0.3) { // for animation effect
+                    self.layer.borderColor = CGColor.init(red: 1, green: 0, blue: 0, alpha: 1)
+                    self.gradient.colors = [UIColor.red.withAlphaComponent(0).cgColor, UIColor.red.cgColor]
+                    self.layer.borderWidth = 3
+                }
+            }
+            else {
+                UIView.animate(withDuration: 0.3) { // for animation effect
+                    self.layer.borderColor = CGColor.init(red: 1, green: 0, blue: 0, alpha: 0)
+                    self.gradient.colors = [UIColor.darkGray.withAlphaComponent(0).cgColor, UIColor.darkGray.cgColor]
+                    self.layer.borderWidth = 0
+                }
+            }
+        }
+    }
 }
 
 class ProjectListViewController: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UIGestureRecognizerDelegate {
@@ -52,10 +71,10 @@ class ProjectListViewController: UIViewController, UICollectionViewDelegate, UIC
     
     override func viewDidLoad() {
         projectList.delegate = self
-        DispatchQueue.main.async { [self] in
-            manager.loadProjectsFromDisk()
-            projectList.reloadData()
-        }
+//        DispatchQueue.main.async { [self] in
+//            manager.loadProjectsFromDisk()
+//            projectList.reloadData()
+//        }
         dateFormatter.dateStyle = .short
         dateFormatter.timeStyle = .short
         projectList.dataSource = self
@@ -63,6 +82,13 @@ class ProjectListViewController: UIViewController, UICollectionViewDelegate, UIC
         selectButton.addTarget(self, action: #selector(switchOperationMode), for: .touchUpInside)
         
         setupLongGestureRecognizerOnCollection()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        DispatchQueue.main.async { [self] in
+            manager.loadProjectsFromDisk()
+            projectList.reloadData()
+        }
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -97,16 +123,21 @@ class ProjectListViewController: UIViewController, UICollectionViewDelegate, UIC
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        // open project view
-        let storyboard = UIStoryboard(name: "ProjectListView", bundle: nil)
-        let project = manager.projects[indexPath.item]
-        project.loadFullData()
-//        let vc = SingleProjectViewController()
-        let vc = storyboard.instantiateViewController(withIdentifier: "SingleProjectView") as! SingleProjectViewController
-//        vc.modalPresentationStyle = .fullScreen
-        vc.project = project
-//        self.present(vc, animated: true, completion: nil)
-        self.navigationController?.pushViewController(vc, animated: true)
+        if operationMode == .viewing{// open project view
+            let storyboard = UIStoryboard(name: "Screens", bundle: nil)
+            let project = manager.projects[indexPath.item]
+            project.loadFullData()
+            let vc = storyboard.instantiateViewController(withIdentifier: "SingleProjectView") as! SingleProjectViewController
+            vc.project = project
+            self.navigationController?.pushViewController(vc, animated: true)
+        } else {
+            let project = manager.projects[indexPath.item]
+            if let index = selectedProjects.firstIndex(of: project) {
+                selectedProjects.remove(at: index)
+            } else {
+                selectedProjects.append(project)
+            }
+        }
     }
     
     private func setupLongGestureRecognizerOnCollection() {
@@ -137,7 +168,7 @@ class ProjectListViewController: UIViewController, UICollectionViewDelegate, UIC
         } else {
             self.operationMode = .viewing
             self.selectButton.setTitle("Select", for: .normal)
-            self.selectButton.setImage(.none, for: .normal)
+            self.selectButton.setImage(nil, for: .normal)
             self.projectList.allowsMultipleSelection = false
             self.projectList.selectItem(at: nil, animated: true, scrollPosition: [])
             self.selectedProjects.removeAll()

@@ -9,8 +9,7 @@ final class LimitHandler: RenderingHelper {
     private var viewportSize = CGSize()
     
     private var currentFrame: CVPixelBuffer?
-    private var currentViewMatrix: matrix_float4x4?
-    private var currentProjectionMatrix: matrix_float4x4?
+    private var currentViewProjectionMatrix: matrix_float4x4?
     private var currentFrameIndex: Int
     private var rgbUniforms: RGBUniforms
     private var rgbUniformsBuffer: MetalBuffer<RGBUniforms>
@@ -92,8 +91,7 @@ final class LimitHandler: RenderingHelper {
         self.pointCloudUniforms.particleSize = 8
         self.pointCloudUniforms.confidenceThreshold = 2
         self.pointCloudUniforms.pointCloudCurrentIndex = 0
-        self.pointCloudUniforms.viewMatrix = project.viewMatrixBuffer![0]
-        self.pointCloudUniforms.projectionMatrix = project.projectionMatrixBuffer![0]
+        self.pointCloudUniforms.viewProjectionMatrix = project.matrixBuffer![0]
     }
     
     func setPlayBackFrame(value: Float) {
@@ -130,11 +128,9 @@ final class LimitHandler: RenderingHelper {
     
     func draw () {
         currentFrame = project.videoFrames![currentFrameIndex]
-        currentViewMatrix = project.viewMatrixBuffer![currentFrameIndex]
-        currentProjectionMatrix = project.projectionMatrixBuffer![currentFrameIndex]
+        currentViewProjectionMatrix = project.matrixBuffer![currentFrameIndex]
         guard currentFrame != nil,
-              currentViewMatrix != nil,
-              currentProjectionMatrix != nil,
+              currentViewProjectionMatrix != nil,
               let renderDescriptor = renderDestination.currentRenderPassDescriptor,
               let commandBuffer = commandQueue.makeCommandBuffer(),
               let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderDescriptor)
@@ -145,8 +141,7 @@ final class LimitHandler: RenderingHelper {
         
         //        TODO: Check if triple buffering is needed to reach performance
         
-        pointCloudUniformsBuffer[0].viewMatrix = currentViewMatrix!
-        pointCloudUniformsBuffer[0].projectionMatrix = currentProjectionMatrix!
+        pointCloudUniformsBuffer[0].viewProjectionMatrix = currentViewProjectionMatrix!
         limitBoxBuffer[0] = limitBox
         
         if self.isYcBcR {

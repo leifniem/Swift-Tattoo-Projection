@@ -65,7 +65,7 @@ class ReconstructionHandler {
             pcd = pcd.remove_statistical_outlier(nb_neighbors: 20, std_ratio: 2.0)[0]
             
             let meshbb = o3d.geometry.AxisAlignedBoundingBox.create_from_points(pcd.points)
-            pcd = pcd.voxel_down_sample(voxel_size: 0.005)
+            pcd = pcd.voxel_down_sample(voxel_size: 0.0025)
             
             let result = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth: 9, scale: 1.5)
             var pyMesh = result[0]
@@ -103,7 +103,7 @@ class ReconstructionHandler {
             
 //            TODO Remove all submeshes but the one with the most polygons
             
-            o3d.io.write_triangle_mesh(project.modelPath!.path, pyMesh, write_vertex_colors: false)
+            o3d.io.write_triangle_mesh(project.modelPath!.path, pyMesh)
             project.setFileWritten()
         }
         

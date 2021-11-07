@@ -11,7 +11,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         if !ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
             // Ensure that the device supports scene depth and present
             //  an error-message view controller, if not.
-            let storyboard = UIStoryboard(name: "ProjectListView", bundle: nil)
+            let storyboard = UIStoryboard(name: "Screens", bundle: nil)
             let viewController = storyboard.instantiateViewController(withIdentifier: "unsupportedDeviceMessage")
             let navController = UINavigationController(rootViewController: viewController)
             window?.rootViewController = navController

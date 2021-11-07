@@ -10,9 +10,9 @@ import ARKit
 final class ScanHandler : RenderingHelper{
     var savedCloudURLs = [URL]()
     private var cpuParticlesBuffer = [CPUParticle]()
-    private var viewMatrixBuffer = [matrix_float4x4]()
-    private var projectionMatrixBuffer = [matrix_float4x4]()
+    private var matrixBuffer = [matrix_float4x4]()
     private var videoBuffer = [CVPixelBuffer]()
+    private var videoDepthBuffer = [CVPixelBuffer]()
     //    private var framesBuffer = [MTLTexture]()
     private let writeLockFlag = CVPixelBufferLockFlags.init(rawValue: 0)
     var bufferCurrentFrame = 0
@@ -100,9 +100,9 @@ final class ScanHandler : RenderingHelper{
         }
     }
     
-    var viewMatrixes: [matrix_float4x4] {
+    var viewProjectionMatrices: [matrix_float4x4] {
         get {
-            return viewMatrixBuffer
+            return matrixBuffer
         }
     }
     
@@ -177,17 +177,14 @@ final class ScanHandler : RenderingHelper{
         let viewMatrix = camera.viewMatrix(for: orientation)
         let viewMatrixInversed = viewMatrix.inverse
         let projectionMatrix = camera.projectionMatrix(for: orientation, viewportSize: viewportSize, zNear: 0.001, zFar: 0)
-//        let viewProjectionMatrix = projectionMatrix * viewMatrix
-        pointCloudUniforms.viewMatrix = viewMatrix
-        pointCloudUniforms.projectionMatrix = projectionMatrix
+        let viewProjectionMatrix = projectionMatrix * viewMatrix
+        pointCloudUniforms.viewProjectionMatrix = viewProjectionMatrix
         pointCloudUniforms.cameraPosition = camera.transform.columns.3
         pointCloudUniforms.localToWorld = viewMatrixInversed * rotateToARCamera
         pointCloudUniforms.cameraIntrinsicsInversed = cameraIntrinsicsInversed
         if isCollectingData {
-            viewMatrixBuffer.insert(viewMatrix, at: bufferCurrentFrame)
-            projectionMatrixBuffer.insert(projectionMatrix, at: bufferCurrentFrame)
+            matrixBuffer.insert(viewProjectionMatrix, at: bufferCurrentFrame)
 //            TODO build camera path for color map optimization
-            
         }
     }
     
@@ -254,8 +251,7 @@ final class ScanHandler : RenderingHelper{
             DispatchQueue.global(qos: .background).async {
                 DispatchQueue.main.async { [self] in
                     videoBuffer.insert(currentFrame.capturedImage.copy(), at: insertFrameIndex)
-                    //                    framesBuffer.insert(texToSave, at: insertFrameIndex)
-//                    TODO write depth video to alpha
+                    videoDepthBuffer.insert(currentFrame.smoothedSceneDepth!.depthMap, at: insertFrameIndex)
                 }
             }
             bufferCurrentFrame += 1
@@ -319,8 +315,8 @@ final class ScanHandler : RenderingHelper{
         let project = ScanProject()
         
         project.setPointCloud(data: cpuParticlesBuffer)
-        project.setMatrices(viewMatrices: viewMatrixBuffer, projectionMatrices: projectionMatrixBuffer)
-        project.setRawVideoData(data: videoBuffer)
+        project.setMatrices(matrices: matrixBuffer)
+        project.setRawVideoData(data: videoBuffer, depthData: videoDepthBuffer)
         
         return project
     }
@@ -345,6 +341,8 @@ extension ScanHandler {
         rgbUniformsBuffers = [MetalBuffer<RGBUniforms>]()
         pointCloudUniformsBuffers = [MetalBuffer<PointCloudUniforms>]()
         videoBuffer = [CVPixelBuffer]()
+        bufferCurrentFrame = 0
+        
         
         commandQueue = device.makeCommandQueue()!
         for _ in 0 ..< maxInFlightBuffers {
