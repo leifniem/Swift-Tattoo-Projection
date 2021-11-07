@@ -221,6 +221,7 @@ final class CompositionHandler: RenderingHelper {
         self.descriptor.vertexFunction = library.makeFunction(name: "modelVert")
         if !project.resources["texture"]! && project.sketch == nil{
             self.descriptor.fragmentFunction = library.makeFunction(name: "wireFrag")
+            self.sketchTexture = nil
         } else {
             self.updateSketchTex()
             self.descriptor.fragmentFunction = library.makeFunction(name: "sketchFrag")
