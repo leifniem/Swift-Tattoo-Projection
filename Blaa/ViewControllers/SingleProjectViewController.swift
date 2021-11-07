@@ -41,7 +41,13 @@ class SingleProjectViewController: UIViewController, MTKViewDelegate, UIImagePic
         compositionView.contentScaleFactor = 1
         compositionView.delegate = self
         compositionView.preferredFramesPerSecond = 30
-        compositionHandler = CompositionHandler(device: device, view: compositionView, project: project!, timeline: videoTimeSlider)
+        compositionHandler = CompositionHandler(
+            device: device,
+            view: compositionView,
+            project: project!,
+            timeline: videoTimeSlider,
+            playButton: playButton
+        )
         navigationItem.title = project!.title
         titleField.text = project?.title
         compositionHandler.drawRectResized(size: compositionView.bounds.size)

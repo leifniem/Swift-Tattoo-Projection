@@ -9,6 +9,7 @@ final class CompositionHandler: RenderingHelper {
     private let project: ScanProject
     private var viewportSize = CGSize()
     private let timeline: UISlider
+    private let playButton: UIButton
     
     private var currentFrame: CVPixelBuffer?
     private var currentViewProjectionMatrix: matrix_float4x4?
@@ -31,12 +32,13 @@ final class CompositionHandler: RenderingHelper {
     private var videoAspect: Float
     private var videoResolution: simd_float2
     
-    init(device: MTLDevice, view: MTKView, project: ScanProject, timeline: UISlider) {
+    init(device: MTLDevice, view: MTKView, project: ScanProject, timeline: UISlider, playButton: UIButton) {
         guard project.videoFrames != nil else {
             fatalError("Project passed has no video frame data")
         }
         self.view = view
         self.timeline = timeline
+        self.playButton = playButton
         view.framebufferOnly = false
         self.project = project
         self.currentFrameIndex = 0
@@ -92,12 +94,12 @@ final class CompositionHandler: RenderingHelper {
     }
     
     func togglePlayState(value: Bool? = nil) {
-        
         if value == nil {
             self.isPlaying = !self.isPlaying
         } else {
             self.isPlaying = value!
         }
+        playButton.setImage(UIImage(systemName: isPlaying ? "pause.fill" : "play.fill"), for: .normal)
     }
     
     func draw () {

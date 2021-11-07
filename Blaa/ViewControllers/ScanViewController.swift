@@ -3,7 +3,7 @@ import Metal
 import MetalKit
 import ARKit
 
-final class ScanViewController: UIViewController, ARSessionDelegate {
+class ScanViewController: UIViewController, ARSessionDelegate {
     @IBOutlet weak var clearButton: UIButton!
     @IBOutlet weak var startStopButton: UIButton!
     @IBOutlet weak var proceedButton: UIButton!
@@ -18,7 +18,6 @@ final class ScanViewController: UIViewController, ARSessionDelegate {
         self.navigationController?.navigationBar.shadowImage = UIImage()
         
         super.viewDidLoad()
-
         
         session.delegate = self
         // Set the view to use the default device
@@ -125,20 +124,50 @@ final class ScanViewController: UIViewController, ARSessionDelegate {
         }
     }
     
-    override public var shouldAutorotate: Bool {
+    override open var shouldAutorotate: Bool {
         return false
     }
     
-    override var prefersHomeIndicatorAutoHidden: Bool {
+    override open var prefersHomeIndicatorAutoHidden: Bool {
         return true
     }
     
-    override public var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+    override open var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         return .portrait
     }
     
-    override public var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation {
+    override open var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation {
         return .portrait
+    }
+}
+
+extension UINavigationController {
+    
+    override open var shouldAutorotate: Bool {
+        get {
+            if let visibleVC = visibleViewController {
+                return visibleVC.shouldAutorotate
+            }
+            return super.shouldAutorotate
+        }
+    }
+    
+    override open var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation{
+        get {
+            if let visibleVC = visibleViewController {
+                return visibleVC.preferredInterfaceOrientationForPresentation
+            }
+            return super.preferredInterfaceOrientationForPresentation
+        }
+    }
+    
+    override open var supportedInterfaceOrientations: UIInterfaceOrientationMask{
+        get {
+            if let visibleVC = visibleViewController {
+                return visibleVC.supportedInterfaceOrientations
+            }
+            return super.supportedInterfaceOrientations
+        }
     }
 }
 
