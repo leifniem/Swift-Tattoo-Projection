@@ -39,6 +39,7 @@ class ScanProject : Codable, Equatable {
     
     enum Constants {
         static let videoName : String = "baseVideo.mp4"
+        static let depthVideoName : String = "depth.mp4"
         static let metaName : String = "meta.skinmeta"
         static let dataName : String = "data.skin"
         static let thumbnailName : String = "thumb.jpg"
@@ -229,14 +230,19 @@ class ScanProject : Codable, Equatable {
     
     func getParticleUniforms() -> [ParticleUniforms] {
         var uniformsCloud = [ParticleUniforms]()
+        let hasToReduce = simd_reduce_max(pointCloud![0].color) > 1
         pointCloud?.forEach{ point in
             if self.bbox == nil {
                 var uniforms = ParticleUniforms()
                 uniforms.position = point.position
+                uniforms.color = hasToReduce ? point.color / 255.0 : point.color
+                uniforms.normal = point.normal
                 uniformsCloud.append(uniforms)
             }else if self.bbox != nil && self.bbox!.contains(point.position){
                 var uniforms = ParticleUniforms()
                 uniforms.position = point.position
+                uniforms.color = hasToReduce ? point.color / 255.0 : point.color
+                uniforms.normal = point.normal
                 uniformsCloud.append(uniforms)
             }
         }
@@ -328,11 +334,10 @@ class ScanProject : Codable, Equatable {
         }
         
         handler.writeVideo(rawVideoData: self.rawVideoData!, videoURL: self.baseVideoUrl!)
-        //         TODO: Write depth to video
-        //        DispatchQueue.global(qos: .background).async {
-        //            DispatchQueue.main.async { [self] in
-        //            }
-        //        }
+        handler.encodeDepth(
+            depthBuffer: self.rawDepthData!,
+            url: self.folderURL.appendingPathComponent(Constants.depthVideoName)
+        )
     }
     
     func readVideo() {
@@ -393,7 +398,7 @@ class ScanProject : Codable, Equatable {
                 self.spatialData.pointCloud!.append(CPUParticle(
                     position: simd_float3(Float(components[0])!, Float(components[1])!, Float(components[2])!),
                     normal: simd_float3(Float(components[3])!, Float(components[4])!, Float(components[5])!),
-                    color: simd_float3(Float(components[6])! / 255.0, Float(components[7])! / 255.0, Float(components[8])! / 255.0)
+                    color: simd_float3(Float(components[6])!, Float(components[7])!, Float(components[8])!)
                 )
                 )
             }

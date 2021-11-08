@@ -22,8 +22,6 @@ final class ScanHandler : RenderingHelper{
     private let maxPoints = 15_000_000
     // Number of sample points on the grid
     private var numGridPoints = 1_000
-    // Particle's size in pixels
-    private let particleSize: Float = 8
     // We only use landscape orientation in this app
     private let orientation = UIInterfaceOrientation.portrait
     // Camera's threshold values for detecting when the camera moves so that we can accumulate the points
@@ -77,7 +75,6 @@ final class ScanHandler : RenderingHelper{
         var uniforms = PointCloudUniforms()
         uniforms.maxPoints = Int32(maxPoints)
         uniforms.confidenceThreshold = Int32(confidenceThreshold)
-        uniforms.particleSize = particleSize
         uniforms.cameraResolution = cameraResolution
         return uniforms
     }()
@@ -154,8 +151,8 @@ final class ScanHandler : RenderingHelper{
         }
 //        videoTextureDescriptor.width = pixelBuffer.getWidth(plane: 0)
 //        videoTextureDescriptor.height = pixelBuffer.getHeight(plane: 0)
-        capturedImageTextureY = textureFromPixelBuffer(fromPixelBuffer: pixelBuffer, pixelFormat: .r8Unorm, planeIndex: 0)
-        capturedImageTextureCbCr = textureFromPixelBuffer(fromPixelBuffer: pixelBuffer, pixelFormat: .rg8Unorm, planeIndex: 1)
+        capturedImageTextureY = pixelBuffer.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .r8Unorm, planeIndex: 0)
+        capturedImageTextureCbCr = pixelBuffer.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .rg8Unorm, planeIndex: 1)
     }
     
     private func updateDepthTextures(frame: ARFrame) -> Bool {
@@ -164,8 +161,8 @@ final class ScanHandler : RenderingHelper{
                   return false
               }
         
-        depthTexture = textureFromPixelBuffer(fromPixelBuffer: depthMap, pixelFormat: .r32Float, planeIndex: 0)
-        confidenceTexture = textureFromPixelBuffer(fromPixelBuffer: confidenceMap, pixelFormat: .r8Uint, planeIndex: 0)
+        depthTexture = depthMap.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .r32Float, planeIndex: 0)
+        confidenceTexture = confidenceMap.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .r8Uint, planeIndex: 0)
         
         return true
     }

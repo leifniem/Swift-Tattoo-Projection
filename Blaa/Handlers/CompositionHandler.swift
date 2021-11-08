@@ -65,7 +65,6 @@ final class CompositionHandler: RenderingHelper {
         
         self.pointCloudUniforms.maxPoints = 15_000_000
         self.pointCloudUniforms.cameraResolution = simd_float2(Float(view.drawableSize.width), Float(view.drawableSize.height))
-        self.pointCloudUniforms.particleSize = 16
         self.pointCloudUniforms.confidenceThreshold = 2
         self.pointCloudUniforms.pointCloudCurrentIndex = 0
         self.pointCloudUniforms.viewProjectionMatrix = project.matrixBuffer![0]
@@ -82,7 +81,7 @@ final class CompositionHandler: RenderingHelper {
         if project.resources["model"]! && project.model != nil {
             updateModelPipeLineState()
         } else {
-            if project.pointCloud == nil {
+            if project.pointCloud == nil || project.pointCloud?.count == 0 {
                 project.readPointCloud()
             }
             self.pointsBuffer = MetalBuffer<ParticleUniforms>(device: device, array: project.getParticleUniforms(), index: kParticleUniforms.rawValue)
@@ -145,7 +144,7 @@ final class CompositionHandler: RenderingHelper {
         
         pointCloudUniformsBuffer[0].viewProjectionMatrix = currentViewProjectionMatrix!
         
-        let currentFrameTex = self.textureFromPixelBuffer(fromPixelBuffer: currentFrame!, pixelFormat: .bgra8Unorm)!
+        let currentFrameTex = currentFrame!.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .bgra8Unorm)!
         
         if project.resources["video"]! && !project.resources["model"]! {
             renderEncoder.setRenderPipelineState(rgbHalfOpacityPipelineState)
@@ -159,7 +158,11 @@ final class CompositionHandler: RenderingHelper {
             renderEncoder.setVertexBuffer(pointsBuffer!)
             renderEncoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: pointsBuffer!.count)
         } else {
-            renderEncoder.setRenderPipelineState(rgbOpaquePipelineState)
+            if self.sketchTexture == nil {
+                renderEncoder.setRenderPipelineState(rgbHalfOpacityPipelineState)
+            } else {
+                renderEncoder.setRenderPipelineState(rgbOpaquePipelineState)
+            }
             renderEncoder.setVertexBuffer(rgbUniformsBuffer)
             renderEncoder.setFragmentBuffer(rgbUniformsBuffer)
             renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(currentFrameTex), index: 0)
@@ -169,7 +172,6 @@ final class CompositionHandler: RenderingHelper {
             if self.sketchTexture == nil {
                 renderEncoder.setTriangleFillMode(.lines)
             } else {
-//                renderEncoder.setCullMode(MTLCullMode.none)
                 renderEncoder.setFragmentTexture(self.sketchTexture, index: 1)
             }
             let vertexBuffer = mesh!.vertexBuffers.first!
@@ -185,13 +187,13 @@ final class CompositionHandler: RenderingHelper {
                     indexBuffer: indexBuffer.buffer,
                     indexBufferOffset: indexBuffer.offset
                 )
-            }
-            
-            if isPlaying {
-                currentFrameIndex += 1
-                currentFrameIndex %= project.videoFrames!.count
-                timeline.setValue(Float(currentFrameIndex) / Float(project.videoFrames!.count) , animated: false)
-            }
+            }   
+        }
+        
+        if isPlaying {
+            currentFrameIndex += 1
+            currentFrameIndex %= project.videoFrames!.count
+            timeline.setValue(Float(currentFrameIndex) / Float(project.videoFrames!.count) , animated: false)
         }
         
         renderEncoder.endEncoding()

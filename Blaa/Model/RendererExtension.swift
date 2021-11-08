@@ -16,7 +16,7 @@ class RenderingHelper {
     let device: MTLDevice
     let renderDestination: RenderDestinationProvider
     let library: MTLLibrary
-    private lazy var textureCache = self.makeTextureCache()
+    lazy var textureCache = self.makeTextureCache()
     lazy var yCbCrToRGBPipelineState = makeYCbCrToRGBPipelineState()!
     lazy var rgbHalfOpacityPipelineState = makeRGBHalfOpacityPipelineState()!
     lazy var rgbOpaquePipelineState = makeRGBOpaquePipelineState()!
@@ -64,20 +64,6 @@ class RenderingHelper {
         var cache: CVMetalTextureCache!
         CVMetalTextureCacheCreate(nil, nil, self.device, nil, &cache)
         return cache
-    }
-    
-    func textureFromPixelBuffer(fromPixelBuffer pixelBuffer: CVPixelBuffer, pixelFormat: MTLPixelFormat, planeIndex: Int? = 0) -> CVMetalTexture? {
-        let width = pixelBuffer.getWidth(plane: planeIndex)
-        let height = pixelBuffer.getHeight(plane: planeIndex)
-        
-        var texture: CVMetalTexture? = nil
-        let status = CVMetalTextureCacheCreateTextureFromImage(nil, self.textureCache, pixelBuffer, nil, pixelFormat, width, height, planeIndex!, &texture)
-        if status != kCVReturnSuccess {
-            texture = nil
-            fatalError("Could not get texture from Buffer")
-        }
-        
-        return texture
     }
     
     func makeYCbCrToRGBPipelineState() -> MTLRenderPipelineState? {

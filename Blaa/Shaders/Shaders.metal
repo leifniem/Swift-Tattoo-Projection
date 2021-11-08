@@ -47,6 +47,8 @@ static simd_float4 worldPoint(simd_float2 cameraPoint, float depth, matrix_float
     return worldPoint / worldPoint.w;
 }
 
+#define depth_limit 3.0
+
 ///  Vertex shader that takes in a 2D grid-point and infers its 3D position in world-space, along with RGB and confidence
 vertex void unprojectVertex(uint vertexID [[vertex_id]],
                             constant PointCloudUniforms &uniforms [[buffer(kPointCloudUniforms)]],
@@ -55,7 +57,8 @@ vertex void unprojectVertex(uint vertexID [[vertex_id]],
                             texture2d<float, access::sample> capturedImageTextureY [[texture(kTextureY)]],
                             texture2d<float, access::sample> capturedImageTextureCbCr [[texture(kTextureCbCr)]],
                             texture2d<float, access::sample> depthTexture [[texture(kTextureDepth)]],
-                            texture2d<unsigned int, access::sample> confidenceTexture [[texture(kTextureConfidence)]]) {
+                            texture2d<unsigned int, access::sample> confidenceTexture [[texture(kTextureConfidence)]]
+                            ) {
     
     const auto gridPoint = gridPoints[vertexID];
     const auto currentPointIndex = (uniforms.pointCloudCurrentIndex + vertexID) % uniforms.maxPoints;
@@ -116,6 +119,10 @@ fragment float4 rgbFragmentFullOpacity(RGBVertexOut in [[stage_in]],
     return float4(sampledColor, 1.0);
 }
 
+// MARK: - Particles
+
+#define PointSize 8
+
 vertex ParticleVertexOut particleVertex(uint vertexID [[vertex_id]],
                                         constant PointCloudUniforms &uniforms [[buffer(kPointCloudUniforms)]],
                                         constant ParticleUniforms *particleUniforms [[buffer(kParticleUniforms)]]) {
@@ -124,12 +131,12 @@ vertex ParticleVertexOut particleVertex(uint vertexID [[vertex_id]],
     const auto particleData = particleUniforms[vertexID];
     const auto position = particleData.position;
     const auto confidence = particleData.confidence;
-    const auto sampledColor = particleData.color;
+    const float3 sampledColor = particleData.color;
     const auto visibility = confidence >= uniforms.confidenceThreshold;
     
     // animate and project the point
     float4 projectedPosition = uniforms.viewProjectionMatrix * float4(position, 1.0);
-    const float pointSize = max(uniforms.particleSize / max(1.0, projectedPosition.z), 2.0);
+    const float pointSize = max(PointSize / max(1.0, projectedPosition.z), 2.0);
     projectedPosition /= projectedPosition.w;
     
     // prepare for output
@@ -154,20 +161,18 @@ vertex ParticleVertexOut particleVertexLimited(uint vertexID [[vertex_id]],
     const auto particleData = particleUniforms[vertexID];
     const auto position = particleData.position;
     const auto confidence = particleData.confidence;
-    const auto sampledColor = particleData.color;
-    const bool visibility = confidence >= uniforms.confidenceThreshold &&
-    lessThan(boundingBox.boxMin, position) && lessThan(position, boundingBox.boxMax);
+    const float3 color = particleData.color;
+    const bool visibility = confidence >= uniforms.confidenceThreshold && lessThan(boundingBox.boxMin, position) && lessThan(position, boundingBox.boxMax);
     
     // animate and project the point
     float4 projectedPosition = uniforms.viewProjectionMatrix * float4(position, 1.0);
-    const float pointSize = max(uniforms.particleSize / max(1.0, projectedPosition.z), 2.0);
     projectedPosition /= projectedPosition.w;
     
     // prepare for output
     ParticleVertexOut out;
     out.position = projectedPosition;
-    out.pointSize = pointSize;
-    out.color = float4(sampledColor, visibility);
+    out.pointSize = PointSize;
+    out.color = float4(color, visibility);
     
     return out;
 }
@@ -176,6 +181,8 @@ fragment float4 particleFragment(ParticleVertexOut in [[stage_in]],
                                  const float2 coords [[point_coord]]) {
     return in.color;
 }
+
+// MARK: - 3d Model Wireframe
 
 vertex MeshVertexOut modelVert(MeshVertexIn in [[stage_in]],
                                constant PointCloudUniforms &uniforms [[buffer(1)]]) {
@@ -191,6 +198,8 @@ fragment float4 wireFrag(MeshVertexOut in [[stage_in]],
     return float4(1);
 }
 
+// MARK: - UV Export
+
 vertex MeshVertexOut UVMapVert(MeshVertexIn in [[stage_in]]) {
     MeshVertexOut out;
     out.position = float4(in.texCoords * 2 - 1.0, 0, 1);
@@ -200,9 +209,12 @@ vertex MeshVertexOut UVMapVert(MeshVertexIn in [[stage_in]]) {
 }
 
 fragment float4 UVMapFrag(MeshVertexOut in [[stage_in]],
-                         const float2 coords [[point_coord]]) {
+                          const float2 coords [[point_coord]]) {
     return float4(in.color.rgb * 0.5, 1);
 }
+
+
+// MARK: - Tattoo Sim
 
 #define Vibrance -.1
 
@@ -217,12 +229,12 @@ float3 screen(float3 a, float3 b) {
 float4 toneDown(float4 sketch) {
     float4 color = sketch;
     float luma = dot(lumCoeff, color.rgb);
-
+    
     float maxColor = max(max(color.r,color.g),color.b);
     float minColor = min(min(color.r,color.g),color.b);
-
+    
     float colorSaturation = maxColor - minColor;
-
+    
     color = mix(luma, color, (1.0 + (Vibrance * (1.0 - (sign(Vibrance) * colorSaturation)))));
     color.a = pow(color.a, 1-colorSaturation);
     return color;
@@ -232,6 +244,21 @@ float3 deSat(float3 in, float blend) {
     float luma = dot(lumCoeff, in);
     return mix(luma, in, blend);
 }
+
+
+fragment float4 encodeDepth(RGBVertexOut in [[stage_in]],
+                   texture2d<float, access::sample> depthIn [[texture(0)]]) {
+    float depth = depthIn.sample(colorSampler, in.texCoord.yx).r;
+    float capped = smoothstep(0, depth_limit, depth);
+    int k = int(capped * 16777215.0);
+    return float4(
+                  float(k & 0xFF) / 255.,
+                  float(k >> 8 & 0xFF) / 255.,
+                  float(k >> 16 & 0xFF) / 255.,
+                  1
+                  );
+}
+
 
 fragment float4 sketchFrag(MeshVertexOut in [[stage_in]],
                            texture2d<float, access::sample> cameraImage [[texture(0)]],
@@ -247,7 +274,7 @@ fragment float4 sketchFrag(MeshVertexOut in [[stage_in]],
         float4 cameraColor = cameraImage.sample(colorSampler, sampleSpot);
         float4 mixed = toneDown(sketchColor);
         float3 mixRGB = multiply(mixed.rgb, float3(cameraColor.r));
-        mixRGB = screen(mixRGB, float3(pow(cameraColor.b, 2.5)));
+        mixRGB = screen(mixRGB, float3(pow(cameraColor.b, 2.2)));
         return float4(mixRGB, mixed.a);
     } else {
         return float4(0);

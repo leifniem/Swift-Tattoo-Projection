@@ -43,7 +43,6 @@ struct PointCloudUniforms {
     simd_float2 cameraResolution;
     simd_float4 cameraPosition;
     
-    float particleSize;
     int maxPoints;
     int pointCloudCurrentIndex;
     int confidenceThreshold;

@@ -95,15 +95,15 @@ class VideoHandler {
         
         let asset = AVAsset(url: url)
         let reader = try! AVAssetReader(asset: asset)
-
+        
         let videoTrack = asset.tracks(withMediaType: AVMediaType.video)[0]
-
+        
         // read video frames as BGRA
         let trackReaderOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings:[String(kCVPixelBufferPixelFormatTypeKey): NSNumber(value: kCVPixelFormatType_32BGRA)])
-
+        
         reader.add(trackReaderOutput)
         reader.startReading()
-
+        
         while let sampleBuffer = trackReaderOutput.copyNextSampleBuffer() {
             if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
                 frames.append(imageBuffer)
@@ -111,5 +111,172 @@ class VideoHandler {
         }
         
         return frames
+    }
+    
+    func encodeDepth(depthBuffer: [CVPixelBuffer], url: URL) {
+        var frames = depthBuffer
+        let frameDuration = CMTimeMake(value: 1, timescale: fps)
+        let sourceWidth = frames[0].getWidth()
+        let sourceHeight = frames[0].getHeight()
+        
+        let compressionSettings: [String: Any] = [
+            AVVideoAverageBitRateKey : 8000000,
+        ]
+        
+        let videoSettings: [String : Any] = [
+            AVVideoWidthKey: sourceWidth,
+            AVVideoHeightKey: sourceHeight,
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoCompressionPropertiesKey: compressionSettings
+        ]
+        
+        
+        var assetWriter: AVAssetWriter?
+        do {assetWriter = try AVAssetWriter(outputURL: url, fileType: .mp4)} catch {
+            fatalError("Asset Writer creation failed: \(error).")
+        }
+        
+        guard let assetWriter = assetWriter else {
+            fatalError("Asset Writer does not exist.")
+        }
+        
+        guard assetWriter.canApply(outputSettings: videoSettings, forMediaType: .video) else {
+            fatalError("Output Settings not working for filetype.")
+        }
+        
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
+        guard assetWriter.canAdd(input) else {
+            fatalError("Cannot add data input to video out.")
+        }
+        
+        input.transform = CGAffineTransform(scaleX: 1, y: -1).rotated(by: .pi/2)
+        
+        assetWriter.add(input)
+        
+        let videoPixelAttributes = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+            kCVPixelBufferWidthKey as String: NSNumber(value: Float(sourceWidth)),
+            kCVPixelBufferHeightKey as String: NSNumber(value: Float(sourceHeight)),
+        ] as [String: Any]
+        let pixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: videoPixelAttributes)
+        
+        //        MTLKit Stuff
+        let device = MTLCreateSystemDefaultDevice()!
+        let library = device.makeDefaultLibrary()!
+        
+        let sharedCaptureManager = MTLCaptureManager.shared()
+        let myCaptureScope = sharedCaptureManager.makeCaptureScope(device: device)
+        
+        let textureDescriptor = MTLTextureDescriptor()
+        textureDescriptor.textureType = .type2D
+        textureDescriptor.width = sourceWidth
+        textureDescriptor.height = sourceHeight
+        textureDescriptor.pixelFormat = .bgra8Unorm
+        textureDescriptor.usage = [.renderTarget]
+        textureDescriptor.storageMode = .shared
+        textureDescriptor.sampleCount = 1
+        
+        let pipelineDescriptor = MTLRenderPipelineDescriptor()
+        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+        pipelineDescriptor.depthAttachmentPixelFormat = .invalid
+//        pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
+//        pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+//        pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+//        pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
+        pipelineDescriptor.vertexFunction = library.makeFunction(name: "rgbVertex")
+        pipelineDescriptor.fragmentFunction = library.makeFunction(name: "encodeDepth")
+        let pipelineState = try! device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+        
+        var cache: CVMetalTextureCache!
+        CVMetalTextureCacheCreate(nil, nil, device, nil, &cache)
+        
+        let renderPassDescriptor = MTLRenderPassDescriptor()
+        renderPassDescriptor.colorAttachments[0].loadAction = .clear
+        renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1)
+        renderPassDescriptor.colorAttachments[0].storeAction = .store
+        
+        let rgbUniforms: RGBUniforms = {
+            var uniforms = RGBUniforms()
+            uniforms.viewToCamera = matrix_float3x3(columns: (
+                simd_float3(0, 1, 0),
+                simd_float3(-1, 0, 1),
+                simd_float3(0, 0, 1)
+            ))
+            uniforms.viewRatio = Float(sourceWidth / sourceHeight)
+            return uniforms
+        }()
+        let rgbUniformsBuffer = MetalBuffer<RGBUniforms>(device: device, array: [rgbUniforms], index: 0)
+        
+        if assetWriter.startWriting(){
+            assetWriter.startSession(atSourceTime: .zero)
+            guard pixelBufferAdaptor.pixelBufferPool != nil else {
+                fatalError("pixelBufferPool does not exist")
+            }
+            
+            let videoQueue = DispatchQueue(label: "website.leifs.scanner.VideoOutputQueue")
+            
+            input.requestMediaDataWhenReady(on: videoQueue, using: { () -> Void in
+                var currentFrameIndex:Int64 = 0
+                var currentTime = CMTime(value: 0, timescale: self.fps)
+                var lastFrameSuccess = true
+                
+                while(!frames.isEmpty) {
+                    if input.isReadyForMoreMediaData {
+                        let frame = frames.remove(at: 0)
+                        
+                        
+                        let frameTex = frame.toCVMetalTexture(textureCache: cache, pixelFormat: .r32Float)!
+                        let outTex = device.makeTexture(descriptor: textureDescriptor)
+                        renderPassDescriptor.colorAttachments[0].texture = outTex
+                        
+                        myCaptureScope.begin()
+                        
+                        guard let commandQueue = device.makeCommandQueue(),
+                              let commandBuffer = commandQueue.makeCommandBuffer(),
+                              let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
+                                  fatalError("Could not set up command structure to render Depth Video.")
+                              }
+                        
+                        renderEncoder.setRenderPipelineState(pipelineState)
+                        renderEncoder.setVertexBuffer(rgbUniformsBuffer, offset: 0)
+                        renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(frameTex), index: 0)
+                        renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
+                        renderEncoder.endEncoding()
+                        
+                        commandBuffer.addCompletedHandler{ commandBuffer in
+                            var buffer: CVPixelBuffer?
+                            let status = CVPixelBufferPoolCreatePixelBuffer(nil, pixelBufferAdaptor.pixelBufferPool!, &buffer)
+                            guard status == kCVReturnSuccess, let pixelBuffer = buffer else {
+                                fatalError("Could not create CVPixelBuffer for depth video.")
+                            }
+                            CVPixelBufferLockBaseAddress(pixelBuffer, [])
+                            let data = CVPixelBufferGetBaseAddress(pixelBuffer)
+                            let bpr = CVPixelBufferGetBytesPerRow(pixelBuffer)
+                            let region = MTLRegionMake2D(0, 0, outTex!.width, outTex!.height)
+                            outTex!.getBytes(data!, bytesPerRow: bpr, from: region, mipmapLevel: 0)
+                            
+                            lastFrameSuccess = pixelBufferAdaptor.append(pixelBuffer, withPresentationTime: currentTime)
+                            currentTime = CMTimeAdd(currentTime, frameDuration)
+                            CVPixelBufferUnlockBaseAddress(buffer!, [])
+                            currentFrameIndex += 1
+                        }
+                        
+                        commandBuffer.commit()
+                        commandBuffer.waitUntilCompleted()
+                        
+                        myCaptureScope.end()
+                    }
+                    if(!lastFrameSuccess) {
+                        print(assetWriter.error! as Any, assetWriter.status.rawValue)
+                        fatalError("Could not append buffer to video output")
+                        break
+                    }
+                }
+                input.markAsFinished()
+                assetWriter.finishWriting(completionHandler: { () -> Void in
+                    print("VIDEO EXPORTED")
+                } )
+            })
+        }
     }
 }

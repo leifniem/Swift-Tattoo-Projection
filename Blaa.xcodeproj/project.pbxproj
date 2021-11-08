@@ -15,7 +15,6 @@
 		8C6F2CF226FC8F1D0058840E /* SingleProjectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C6F2CF126FC8F1D0058840E /* SingleProjectViewController.swift */; };
 		8C72D34B271F195A00BF203A /* PythonKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8C72D34A271F195A00BF203A /* PythonKit */; };
 		8C888B632709BD4700C1B3AA /* ExtrasJSON in Frameworks */ = {isa = PBXBuildFile; productRef = 8C888B622709BD4700C1B3AA /* ExtrasJSON */; };
-		8C9F85F426FA00A1002980D8 /* Gzip in Frameworks */ = {isa = PBXBuildFile; productRef = 8C9F85F326FA00A1002980D8 /* Gzip */; };
 		8CA716EF26F2129A00D5993D /* VideoHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CA716EE26F2129A00D5993D /* VideoHandler.swift */; };
 		8CAE27ED26F0CF6500E26491 /* LimitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CAE27EC26F0CF6500E26491 /* LimitViewController.swift */; };
 		8CBFA4F326FE1D9900BFA7EA /* CompositionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CBFA4F226FE1D9900BFA7EA /* CompositionHandler.swift */; };
@@ -72,7 +71,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8C9F85F426FA00A1002980D8 /* Gzip in Frameworks */,
 				8C888B632709BD4700C1B3AA /* ExtrasJSON in Frameworks */,
 				8C72D34B271F195A00BF203A /* PythonKit in Frameworks */,
 				8CC19E4927217586009E0E57 /* Open3D-iOS in Frameworks */,
@@ -214,7 +212,6 @@
 			);
 			name = Blaa;
 			packageProductDependencies = (
-				8C9F85F326FA00A1002980D8 /* Gzip */,
 				8C888B622709BD4700C1B3AA /* ExtrasJSON */,
 				8C72D34A271F195A00BF203A /* PythonKit */,
 				8CC19E4827217586009E0E57 /* Open3D-iOS */,
@@ -248,7 +245,6 @@
 			);
 			mainGroup = E73DD12424636FEF00D77039;
 			packageReferences = (
-				8C9F85F226FA00A1002980D8 /* XCRemoteSwiftPackageReference "GzipSwift" */,
 				8C888B612709BD4700C1B3AA /* XCRemoteSwiftPackageReference "swift-extras-json" */,
 				8C72D349271F195A00BF203A /* XCRemoteSwiftPackageReference "PythonKit" */,
 				8CC19E4727217586009E0E57 /* XCRemoteSwiftPackageReference "Open3D-iOS" */,
@@ -536,14 +532,6 @@
 				minimumVersion = 0.6.0;
 			};
 		};
-		8C9F85F226FA00A1002980D8 /* XCRemoteSwiftPackageReference "GzipSwift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/1024jp/GzipSwift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 5.0.0;
-			};
-		};
 		8CC19E4727217586009E0E57 /* XCRemoteSwiftPackageReference "Open3D-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/kewlbear/Open3D-iOS";
@@ -564,11 +552,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 8C888B612709BD4700C1B3AA /* XCRemoteSwiftPackageReference "swift-extras-json" */;
 			productName = ExtrasJSON;
-		};
-		8C9F85F326FA00A1002980D8 /* Gzip */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 8C9F85F226FA00A1002980D8 /* XCRemoteSwiftPackageReference "GzipSwift" */;
-			productName = Gzip;
 		};
 		8CC19E4827217586009E0E57 /* Open3D-iOS */ = {
 			isa = XCSwiftPackageProductDependency;

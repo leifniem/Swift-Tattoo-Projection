@@ -20,7 +20,6 @@ final class LimitHandler: RenderingHelper {
     private var commandQueue: MTLCommandQueue
     private var videoAspect: Float
     private var videoResolution: simd_float2
-    //    private let particleSize: Float = 8
     private var frameTextureY: CVMetalTexture?
     private var frameTextureCbCr: CVMetalTexture?
     private var frameTextureBGRA: CVMetalTexture?
@@ -88,7 +87,6 @@ final class LimitHandler: RenderingHelper {
         
         self.pointCloudUniforms.maxPoints = 15_000_000
         self.pointCloudUniforms.cameraResolution = simd_float2(videoResolution)
-        self.pointCloudUniforms.particleSize = 8
         self.pointCloudUniforms.confidenceThreshold = 2
         self.pointCloudUniforms.pointCloudCurrentIndex = 0
         self.pointCloudUniforms.viewProjectionMatrix = project.matrixBuffer![0]
@@ -146,13 +144,13 @@ final class LimitHandler: RenderingHelper {
         
         if self.isYcBcR {
             //  CV420YpCbCr8BiPlanarFullRange
-            frameTextureY = textureFromPixelBuffer(fromPixelBuffer: currentFrame!, pixelFormat: .r8Unorm, planeIndex: 0)
-            frameTextureCbCr = textureFromPixelBuffer(fromPixelBuffer: currentFrame!, pixelFormat: .rg8Unorm, planeIndex: 1)
+            frameTextureY = currentFrame!.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .r8Unorm, planeIndex: 0)
+            frameTextureCbCr = currentFrame!.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .rg8Unorm, planeIndex: 1)
             renderEncoder.setRenderPipelineState(yCbCrToRGBPipelineState)
             renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(frameTextureY!), index: Int(kTextureY.rawValue))
             renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(frameTextureCbCr!), index: Int(kTextureCbCr.rawValue))
         } else {
-            frameTextureBGRA = textureFromPixelBuffer(fromPixelBuffer: currentFrame!, pixelFormat: .bgra8Unorm)
+            frameTextureBGRA = currentFrame!.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .bgra8Unorm)
             renderEncoder.setRenderPipelineState(rgbHalfOpacityPipelineState)
             renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(frameTextureBGRA!), index: 0)
         }

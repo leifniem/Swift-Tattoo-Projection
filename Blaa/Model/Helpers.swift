@@ -138,6 +138,20 @@ extension CVPixelBuffer
         return copy
     }
     
+    func toCVMetalTexture(textureCache: CVMetalTextureCache, pixelFormat: MTLPixelFormat, planeIndex: Int? = 0) -> CVMetalTexture? {
+        let width = self.getWidth(plane: planeIndex)
+        let height = self.getHeight(plane: planeIndex)
+        
+        var texture: CVMetalTexture? = nil
+        let status = CVMetalTextureCacheCreateTextureFromImage(nil, textureCache, self, nil, pixelFormat, width, height, planeIndex!, &texture)
+        if status != kCVReturnSuccess {
+            texture = nil
+            fatalError("Could not get texture from Buffer")
+        }
+        
+        return texture
+    }
+    
     func getWidth(plane: Int? = nil) -> Int {
         if plane != nil {
             return CVPixelBufferGetWidthOfPlane(self, plane!)
