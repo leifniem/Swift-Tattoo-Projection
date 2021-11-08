@@ -47,8 +47,6 @@ static simd_float4 worldPoint(simd_float2 cameraPoint, float depth, matrix_float
     return worldPoint / worldPoint.w;
 }
 
-#define depth_limit 3.0
-
 ///  Vertex shader that takes in a 2D grid-point and infers its 3D position in world-space, along with RGB and confidence
 vertex void unprojectVertex(uint vertexID [[vertex_id]],
                             constant PointCloudUniforms &uniforms [[buffer(kPointCloudUniforms)]],
@@ -194,8 +192,10 @@ vertex MeshVertexOut modelVert(MeshVertexIn in [[stage_in]],
 }
 
 fragment float4 wireFrag(MeshVertexOut in [[stage_in]],
+                         texture2d<float, access::sample> depthTex [[texture(1)]],
                          const float2 coords [[point_coord]]) {
-    return float4(1);
+    float depth = depthTex.sample(colorSampler, in.position.xy).r;
+    return float4(depth, depth, depth, 1);
 }
 
 // MARK: - UV Export
@@ -245,24 +245,10 @@ float3 deSat(float3 in, float blend) {
     return mix(luma, in, blend);
 }
 
-
-fragment float4 encodeDepth(RGBVertexOut in [[stage_in]],
-                   texture2d<float, access::sample> depthIn [[texture(0)]]) {
-    float depth = depthIn.sample(colorSampler, in.texCoord.yx).r;
-    float capped = smoothstep(0, depth_limit, depth);
-    int k = int(capped * 16777215.0);
-    return float4(
-                  float(k & 0xFF) / 255.,
-                  float(k >> 8 & 0xFF) / 255.,
-                  float(k >> 16 & 0xFF) / 255.,
-                  1
-                  );
-}
-
-
 fragment float4 sketchFrag(MeshVertexOut in [[stage_in]],
                            texture2d<float, access::sample> cameraImage [[texture(0)]],
-                           texture2d<float, access::sample> sketch [[texture(1)]],
+                           texture2d<float, access::sample> sketch [[texture(2)]],
+                           texture2d<float, access::sample> depthTex [[texture(1)]],
                            constant PointCloudUniforms &uniforms [[buffer(1)]]
                            ) {
     float2 sampleSpot = float2(
@@ -271,6 +257,10 @@ fragment float4 sketchFrag(MeshVertexOut in [[stage_in]],
                                );
     float4 sketchColor = sketch.sample(colorSampler, in.texCoord);
     if (sketchColor.a > 0) {
+        float depth = depthTex.sample(colorSampler, sampleSpot).r;
+        if (depth < in.position.z) {
+            return float4(0);
+        }
         float4 cameraColor = cameraImage.sample(colorSampler, sampleSpot);
         float4 mixed = toneDown(sketchColor);
         float3 mixRGB = multiply(mixed.rgb, float3(cameraColor.r));
@@ -279,4 +269,67 @@ fragment float4 sketchFrag(MeshVertexOut in [[stage_in]],
     } else {
         return float4(0);
     }
+}
+
+// MARK: - Depth Video
+
+#define depth_limit 5.0
+
+fragment float4 encodeDepth(RGBVertexOut in [[stage_in]],
+                            texture2d<float, access::sample> depthIn [[texture(0)]]) {
+    float depth = depthIn.sample(colorSampler, in.texCoord.yx).r / depth_limit;
+    depth = round(depth * 1529.0);
+    int dnorm = int(depth);
+    float3 col = float3(0);
+    if(dnorm <= 255) {
+        col.r = 255;
+        col.g = dnorm;
+        col.b = 0;
+    } else if (255 < dnorm && dnorm <= 510) {
+        col.r = 255 - dnorm;
+        col.g = 255;
+        col.b = 0;
+    } else if (510 < dnorm && dnorm <= 765) {
+        col.r = 0;
+        col.g = 765 - dnorm;
+        col.b = 0;
+    } else if (765 < dnorm && dnorm <= 1020) {
+        col.r = 0;
+        col.g = 0;
+        col.b = dnorm - 765;
+    } else if (1020 < dnorm && dnorm <= 1275) {
+        col.r = dnorm - 1020;
+        col.g = 0;
+        col.b = 255;
+    } else if (1275 < dnorm) {
+        col.r = 255;
+        col.g = 0;
+        col.b = 1529 - dnorm;
+    } else if (1529 < dnorm) {
+        col.r = 255;
+        col.g = 0;
+        col.b = 0;
+    }
+    col /= 256.0;
+    return float4(col, 1);
+}
+
+kernel void decodeDepth(texture2d<float, access::sample> rgbIn [[texture(0)]],
+                        texture2d<float, access::write> depthOut [[texture(1)]],
+                        uint2 pos [[ thread_position_in_grid ]]
+                        ) {
+    float3 c = rgbIn.read(pos).rgb * 256.0;
+    float dnorm = 0.;
+    if (c.r >= c.g && c.r >= c.b && c.g >= c.b) {
+        dnorm = c.g - c.b;
+    } else if (c.r >= c.g && c.r >= c.b && c.g < c.b) {
+        dnorm = c.g - c.b + 1529;
+    } else if (c.g >= c.r && c.g >= c.b) {
+        dnorm = c.b - c.r + 510;
+    } else if (c.b >= c.g && c.b >= c.r) {
+        dnorm = c.r - c.g + 1020;
+    }
+    float d = depth_limit * dnorm / 1529.0;
+    depthOut.write(d, pos);
+    //    return out;
 }

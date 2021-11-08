@@ -164,9 +164,6 @@ class VideoHandler {
         let device = MTLCreateSystemDefaultDevice()!
         let library = device.makeDefaultLibrary()!
         
-        let sharedCaptureManager = MTLCaptureManager.shared()
-        let myCaptureScope = sharedCaptureManager.makeCaptureScope(device: device)
-        
         let textureDescriptor = MTLTextureDescriptor()
         textureDescriptor.textureType = .type2D
         textureDescriptor.width = sourceWidth
@@ -179,10 +176,6 @@ class VideoHandler {
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
         pipelineDescriptor.depthAttachmentPixelFormat = .invalid
-//        pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
-//        pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
-//        pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
-//        pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
         pipelineDescriptor.vertexFunction = library.makeFunction(name: "rgbVertex")
         pipelineDescriptor.fragmentFunction = library.makeFunction(name: "encodeDepth")
         let pipelineState = try! device.makeRenderPipelineState(descriptor: pipelineDescriptor)
@@ -194,6 +187,10 @@ class VideoHandler {
         renderPassDescriptor.colorAttachments[0].loadAction = .clear
         renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1)
         renderPassDescriptor.colorAttachments[0].storeAction = .store
+//        pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
+//        pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+//        pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+//        pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
         
         let rgbUniforms: RGBUniforms = {
             var uniforms = RGBUniforms()
@@ -215,6 +212,9 @@ class VideoHandler {
             
             let videoQueue = DispatchQueue(label: "website.leifs.scanner.VideoOutputQueue")
             
+            let commandQueue = device.makeCommandQueue()!
+            commandQueue.label = "Depth Encoding Queue"
+            
             input.requestMediaDataWhenReady(on: videoQueue, using: { () -> Void in
                 var currentFrameIndex:Int64 = 0
                 var currentTime = CMTime(value: 0, timescale: self.fps)
@@ -224,15 +224,11 @@ class VideoHandler {
                     if input.isReadyForMoreMediaData {
                         let frame = frames.remove(at: 0)
                         
-                        
                         let frameTex = frame.toCVMetalTexture(textureCache: cache, pixelFormat: .r32Float)!
                         let outTex = device.makeTexture(descriptor: textureDescriptor)
                         renderPassDescriptor.colorAttachments[0].texture = outTex
                         
-                        myCaptureScope.begin()
-                        
-                        guard let commandQueue = device.makeCommandQueue(),
-                              let commandBuffer = commandQueue.makeCommandBuffer(),
+                        guard let commandBuffer = commandQueue.makeCommandBuffer(),
                               let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
                                   fatalError("Could not set up command structure to render Depth Video.")
                               }
@@ -263,8 +259,6 @@ class VideoHandler {
                         
                         commandBuffer.commit()
                         commandBuffer.waitUntilCompleted()
-                        
-                        myCaptureScope.end()
                     }
                     if(!lastFrameSuccess) {
                         print(assetWriter.error! as Any, assetWriter.status.rawValue)
@@ -274,9 +268,104 @@ class VideoHandler {
                 }
                 input.markAsFinished()
                 assetWriter.finishWriting(completionHandler: { () -> Void in
-                    print("VIDEO EXPORTED")
+                    print("DEPTH EXPORTED")
                 } )
             })
         }
+    }
+    
+    func readDepth(url: URL) -> [CVPixelBuffer] {
+        var frames: [CVPixelBuffer] = []
+        
+        let asset = AVAsset(url: url)
+        let reader = try! AVAssetReader(asset: asset)
+        
+        let videoTrack = asset.tracks(withMediaType: AVMediaType.video)[0]
+        
+        // read video frames as BGRA
+        let trackReaderOutput = AVAssetReaderTrackOutput(track: videoTrack, outputSettings:[String(kCVPixelBufferPixelFormatTypeKey): NSNumber(value: kCVPixelFormatType_32BGRA)])
+        
+        reader.add(trackReaderOutput)
+        reader.startReading()
+        
+        while let sampleBuffer = trackReaderOutput.copyNextSampleBuffer() {
+            if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                frames.append(imageBuffer)
+            }
+        }
+        
+        //        MTLKit Stuff
+        let device = MTLCreateSystemDefaultDevice()!
+        let library = device.makeDefaultLibrary()!
+        
+        let sourceWidth = frames[0].getWidth()
+        let sourceHeight = frames[0].getHeight()
+        
+        let textureDescriptor = MTLTextureDescriptor()
+        textureDescriptor.textureType = .type2D
+        textureDescriptor.width = sourceWidth
+        textureDescriptor.height = sourceHeight
+        textureDescriptor.pixelFormat = .r32Float
+        textureDescriptor.usage = [.shaderWrite]
+        textureDescriptor.storageMode = .shared
+        textureDescriptor.sampleCount = 1
+        
+        var cache: CVMetalTextureCache!
+        CVMetalTextureCacheCreate(nil, nil, device, nil, &cache)
+        
+        let pipelineState = try! device.makeComputePipelineState(function: library.makeFunction(name: "decodeDepth")!)
+        let numThreadgroups = MTLSize(width: sourceWidth, height: sourceHeight, depth: 1)
+        let threadsPerThreadgroup = MTLSize(width: 1, height: 1, depth: 1)
+        
+        let commandQueue = device.makeCommandQueue()!
+        
+        let sharedCaptueManager = MTLCaptureManager.shared()
+        let myScope = sharedCaptueManager.makeCaptureScope(commandQueue: commandQueue)
+        myScope.label = "Debug Depth Decoding"
+        sharedCaptueManager.defaultCaptureScope = myScope
+        myScope.begin()
+        
+        let back: [CVPixelBuffer] = frames.map{ frame in
+            let frameTex = frame.toCVMetalTexture(textureCache: cache, pixelFormat: .bgra8Unorm)!
+            let outTex = device.makeTexture(descriptor: textureDescriptor)
+            //            renderPassDescriptor.colorAttachments[0].texture = outTex
+            
+            
+            guard let commandBuffer = commandQueue.makeCommandBuffer(),
+                  let encoder = commandBuffer.makeComputeCommandEncoder() else {
+                      fatalError("Could not set up command structure to render Depth Video.")
+                  }
+            
+            encoder.setComputePipelineState(pipelineState)
+            encoder.setTexture(CVMetalTextureGetTexture(frameTex), index: 0)
+            encoder.setTexture(outTex, index: 1)
+            encoder.dispatchThreadgroups(numThreadgroups, threadsPerThreadgroup: threadsPerThreadgroup)
+            encoder.endEncoding()
+            
+            var buffer: CVPixelBuffer?
+            CVPixelBufferCreate(kCFAllocatorDefault, sourceWidth, sourceHeight, kCVPixelFormatType_DepthFloat32, [kCVPixelBufferMetalCompatibilityKey: true] as CFDictionary, &buffer)
+            guard let pixelBuffer = buffer else {
+                fatalError("Could not create CVPixelBuffer for depth video.")
+            }
+            
+            commandBuffer.addCompletedHandler{ commandBuffer in
+                CVPixelBufferLockBaseAddress(pixelBuffer, [])
+                let data = CVPixelBufferGetBaseAddress(pixelBuffer)
+                let bpr = CVPixelBufferGetBytesPerRow(pixelBuffer)
+                let region = MTLRegionMake2D(0, 0, outTex!.width, outTex!.height)
+                outTex!.getBytes(data!, bytesPerRow: bpr, from: region, mipmapLevel: 0)
+                
+                CVPixelBufferUnlockBaseAddress(buffer!, [])
+            }
+            
+            commandBuffer.commit()
+            commandBuffer.waitUntilCompleted()
+            
+            return buffer!
+        }
+        
+        myScope.end()
+        
+        return back
     }
 }

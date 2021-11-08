@@ -112,7 +112,7 @@ extension CVPixelBuffer
             CVPixelBufferGetPixelFormatType(self),
             [
                 kCVPixelBufferMetalCompatibilityKey: true
-            ] as CFDictionary ,
+            ] as CFDictionary,
             &_copy)
         
         guard let copy = _copy else { fatalError() }

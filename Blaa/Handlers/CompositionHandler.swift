@@ -12,6 +12,7 @@ final class CompositionHandler: RenderingHelper {
     private let playButton: UIButton
     
     private var currentFrame: CVPixelBuffer?
+    private var currentDepth: CVPixelBuffer?
     private var currentViewProjectionMatrix: matrix_float4x4?
     private var modelMatrix: matrix_float4x4?
     private var currentFrameIndex: Int
@@ -103,6 +104,7 @@ final class CompositionHandler: RenderingHelper {
     
     func draw () {
         currentFrame = project.videoFrames![currentFrameIndex]
+        currentDepth = project.depthFrames![currentFrameIndex]
         currentViewProjectionMatrix = project.matrixBuffer![currentFrameIndex]
         guard currentFrame != nil,
               currentViewProjectionMatrix != nil,
@@ -145,6 +147,7 @@ final class CompositionHandler: RenderingHelper {
         pointCloudUniformsBuffer[0].viewProjectionMatrix = currentViewProjectionMatrix!
         
         let currentFrameTex = currentFrame!.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .bgra8Unorm)!
+        let currentDepthTex = currentDepth!.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .r32Float)!
         
         if project.resources["video"]! && !project.resources["model"]! {
             renderEncoder.setRenderPipelineState(rgbHalfOpacityPipelineState)
@@ -166,13 +169,17 @@ final class CompositionHandler: RenderingHelper {
             renderEncoder.setVertexBuffer(rgbUniformsBuffer)
             renderEncoder.setFragmentBuffer(rgbUniformsBuffer)
             renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(currentFrameTex), index: 0)
+            renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(currentDepthTex), index: 1)
             renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
             
+            if modelPipelineState == nil {
+                self.updateModelPipeLineState()
+            }
             renderEncoder.setRenderPipelineState(self.modelPipelineState!)
             if self.sketchTexture == nil {
                 renderEncoder.setTriangleFillMode(.lines)
             } else {
-                renderEncoder.setFragmentTexture(self.sketchTexture, index: 1)
+                renderEncoder.setFragmentTexture(self.sketchTexture, index: 2)
             }
             let vertexBuffer = mesh!.vertexBuffers.first!
             renderEncoder.setVertexBuffer(vertexBuffer.buffer, offset: vertexBuffer.offset, index: 0)

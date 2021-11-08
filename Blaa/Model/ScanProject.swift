@@ -2,7 +2,6 @@ import Foundation
 import CoreVideo
 import UIKit
 import AVFoundation
-import Gzip
 import ExtrasJSON
 import ModelIO
 import MetalKit
@@ -80,6 +79,9 @@ class ScanProject : Codable, Equatable {
         get {return self.modifiedDate}
     }
     var videoFrames: [CVPixelBuffer]? {
+        get {return self.rawVideoData}
+    }
+    var depthFrames: [CVPixelBuffer]? {
         get {return self.rawVideoData}
     }
     var matrixBuffer: [matrix_float4x4]? {
@@ -344,6 +346,7 @@ class ScanProject : Codable, Equatable {
         self.baseVideoUrl = URL.init(string: Constants.videoName, relativeTo: self.folderURL)
         let handler = VideoHandler()
         self.rawVideoData = handler.readVideo(url: folderURL.appendingPathComponent(Constants.videoName))
+        self.rawDepthData = handler.readDepth(url: (folder?.appendingPathComponent(Constants.depthVideoName))!)
     }
     
     func getThumbnail() {
