@@ -63,6 +63,7 @@ class ScanProject : Codable, Equatable {
     private var spatialData: ProjectSpatialData
     private var rawVideoData: [CVPixelBuffer]?
     private var rawDepthData: [CVPixelBuffer]?
+    private var depthTextures: [MTLTexture]?
     private var thumb: UIImage?
     private var bbox: Box?
     private var sketchTexture: UIImage?
@@ -81,8 +82,8 @@ class ScanProject : Codable, Equatable {
     var videoFrames: [CVPixelBuffer]? {
         get {return self.rawVideoData}
     }
-    var depthFrames: [CVPixelBuffer]? {
-        get {return self.rawVideoData}
+    var depthFrames: [MTLTexture]? {
+        get {return self.depthTextures}
     }
     var matrixBuffer: [matrix_float4x4]? {
         get {return self.spatialData.viewProjectionMatrices}
@@ -346,7 +347,7 @@ class ScanProject : Codable, Equatable {
         self.baseVideoUrl = URL.init(string: Constants.videoName, relativeTo: self.folderURL)
         let handler = VideoHandler()
         self.rawVideoData = handler.readVideo(url: folderURL.appendingPathComponent(Constants.videoName))
-        self.rawDepthData = handler.readDepth(url: (folder?.appendingPathComponent(Constants.depthVideoName))!)
+        self.depthTextures = handler.readDepth(url: (folder?.appendingPathComponent(Constants.depthVideoName))!)
     }
     
     func getThumbnail() {

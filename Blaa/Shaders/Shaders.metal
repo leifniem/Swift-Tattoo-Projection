@@ -192,10 +192,8 @@ vertex MeshVertexOut modelVert(MeshVertexIn in [[stage_in]],
 }
 
 fragment float4 wireFrag(MeshVertexOut in [[stage_in]],
-                         texture2d<float, access::sample> depthTex [[texture(1)]],
                          const float2 coords [[point_coord]]) {
-    float depth = depthTex.sample(colorSampler, in.position.xy).r;
-    return float4(depth, depth, depth, 1);
+    return float4(1);
 }
 
 // MARK: - UV Export
@@ -282,33 +280,33 @@ fragment float4 encodeDepth(RGBVertexOut in [[stage_in]],
     int dnorm = int(depth);
     float3 col = float3(0);
     if(dnorm <= 255) {
-        col.r = 255;
-        col.g = dnorm;
-        col.b = 0;
-    } else if (255 < dnorm && dnorm <= 510) {
-        col.r = 255 - dnorm;
-        col.g = 255;
-        col.b = 0;
-    } else if (510 < dnorm && dnorm <= 765) {
-        col.r = 0;
-        col.g = 765 - dnorm;
-        col.b = 0;
-    } else if (765 < dnorm && dnorm <= 1020) {
-        col.r = 0;
-        col.g = 0;
-        col.b = dnorm - 765;
-    } else if (1020 < dnorm && dnorm <= 1275) {
-        col.r = dnorm - 1020;
-        col.g = 0;
         col.b = 255;
-    } else if (1275 < dnorm) {
-        col.r = 255;
-        col.g = 0;
-        col.b = 1529 - dnorm;
-    } else if (1529 < dnorm) {
-        col.r = 255;
-        col.g = 0;
+        col.g = dnorm;
+        col.r = 0;
+    } else if (255 < dnorm && dnorm <= 510) {
+        col.b = 255 - dnorm;
+        col.g = 255;
+        col.r = 0;
+    } else if (510 < dnorm && dnorm <= 765) {
         col.b = 0;
+        col.g = 765 - dnorm;
+        col.r = 0;
+    } else if (765 < dnorm && dnorm <= 1020) {
+        col.b = 0;
+        col.g = 0;
+        col.r = dnorm - 765;
+    } else if (1020 < dnorm && dnorm <= 1275) {
+        col.b = dnorm - 1020;
+        col.g = 0;
+        col.r = 255;
+    } else if (1275 < dnorm) {
+        col.b = 255;
+        col.g = 0;
+        col.r = 1529 - dnorm;
+    } else if (1529 < dnorm) {
+        col.b = 255;
+        col.g = 0;
+        col.r = 0;
     }
     col /= 256.0;
     return float4(col, 1);
@@ -320,14 +318,14 @@ kernel void decodeDepth(texture2d<float, access::sample> rgbIn [[texture(0)]],
                         ) {
     float3 c = rgbIn.read(pos).rgb * 256.0;
     float dnorm = 0.;
-    if (c.r >= c.g && c.r >= c.b && c.g >= c.b) {
-        dnorm = c.g - c.b;
-    } else if (c.r >= c.g && c.r >= c.b && c.g < c.b) {
-        dnorm = c.g - c.b + 1529;
-    } else if (c.g >= c.r && c.g >= c.b) {
-        dnorm = c.b - c.r + 510;
-    } else if (c.b >= c.g && c.b >= c.r) {
-        dnorm = c.r - c.g + 1020;
+    if (c.b >= c.g && c.b >= c.r && c.g >= c.r) {
+        dnorm = c.g - c.r;
+    } else if (c.b >= c.g && c.b >= c.r && c.g < c.r) {
+        dnorm = c.g - c.r + 1529;
+    } else if (c.g >= c.b && c.g >= c.r) {
+        dnorm = c.r - c.b + 510;
+    } else if (c.r >= c.g && c.r >= c.b) {
+        dnorm = c.b - c.g + 1020;
     }
     float d = depth_limit * dnorm / 1529.0;
     depthOut.write(d, pos);

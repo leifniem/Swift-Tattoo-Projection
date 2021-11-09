@@ -12,7 +12,7 @@ final class CompositionHandler: RenderingHelper {
     private let playButton: UIButton
     
     private var currentFrame: CVPixelBuffer?
-    private var currentDepth: CVPixelBuffer?
+    private var currentDepth: MTLTexture?
     private var currentViewProjectionMatrix: matrix_float4x4?
     private var modelMatrix: matrix_float4x4?
     private var currentFrameIndex: Int
@@ -147,7 +147,6 @@ final class CompositionHandler: RenderingHelper {
         pointCloudUniformsBuffer[0].viewProjectionMatrix = currentViewProjectionMatrix!
         
         let currentFrameTex = currentFrame!.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .bgra8Unorm)!
-        let currentDepthTex = currentDepth!.toCVMetalTexture(textureCache: self.textureCache, pixelFormat: .r32Float)!
         
         if project.resources["video"]! && !project.resources["model"]! {
             renderEncoder.setRenderPipelineState(rgbHalfOpacityPipelineState)
@@ -169,7 +168,7 @@ final class CompositionHandler: RenderingHelper {
             renderEncoder.setVertexBuffer(rgbUniformsBuffer)
             renderEncoder.setFragmentBuffer(rgbUniformsBuffer)
             renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(currentFrameTex), index: 0)
-            renderEncoder.setFragmentTexture(CVMetalTextureGetTexture(currentDepthTex), index: 1)
+            renderEncoder.setFragmentTexture(currentDepth, index: 1)
             renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
             
             if modelPipelineState == nil {

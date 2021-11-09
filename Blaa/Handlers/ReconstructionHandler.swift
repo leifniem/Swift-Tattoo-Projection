@@ -33,6 +33,7 @@ class ReconstructionHandler {
         let np = Python.import("numpy")
         let ma = Python.import("numpy.ma")
         
+        let divideColor = simd_reduce_max(project.pointCloud![0].color) > 1
         
         var pcdPositions = [[Float]]()
         var pcdNormals = [[Float]]()
@@ -41,7 +42,9 @@ class ReconstructionHandler {
             if project.boundingBox!.contains(point.position) {
                 pcdPositions.append([point.position.x, point.position.y, point.position.z])
                 pcdNormals.append([point.normal.x, point.normal.y, point.normal.z])
-                pcdColors.append([point.color.x, point.color.y, point.color.z])
+                divideColor
+                ? pcdColors.append([point.color.x / 255.0, point.color.y / 255.0, point.color.z / 255.0])
+                : pcdColors.append([point.color.x, point.color.y, point.color.z])
             }
         }
         
@@ -90,9 +93,9 @@ class ReconstructionHandler {
             
 //            smooth mesh
             pyMesh = pyMesh.filter_smooth_taubin(number_of_iterations: 3)
-            pyMesh.compute_vertex_normals()
-            pyMesh.compute_triangle_normals()
             pyMesh.orient_triangles()
+            pyMesh.compute_triangle_normals()
+            pyMesh.compute_vertex_normals()
             
             //            optimization
             pyMesh.remove_degenerate_triangles()
@@ -103,7 +106,7 @@ class ReconstructionHandler {
             
 //            TODO Remove all submeshes but the one with the most polygons
             
-            o3d.io.write_triangle_mesh(project.modelPath!.path, pyMesh)
+            o3d.io.write_triangle_mesh(project.modelPath!.path, pyMesh, write_ascii: true)
             project.setFileWritten()
         }
         

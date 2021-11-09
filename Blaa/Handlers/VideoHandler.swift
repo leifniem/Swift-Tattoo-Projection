@@ -120,13 +120,13 @@ class VideoHandler {
         let sourceHeight = frames[0].getHeight()
         
         let compressionSettings: [String: Any] = [
-            AVVideoAverageBitRateKey : 8000000,
+            AVVideoAverageBitRateKey : 10000000,
         ]
         
         let videoSettings: [String : Any] = [
             AVVideoWidthKey: sourceWidth,
             AVVideoHeightKey: sourceHeight,
-            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoCodecKey: AVVideoCodecType.hevc,
             AVVideoCompressionPropertiesKey: compressionSettings
         ]
         
@@ -274,7 +274,7 @@ class VideoHandler {
         }
     }
     
-    func readDepth(url: URL) -> [CVPixelBuffer] {
+    func readDepth(url: URL) -> [MTLTexture] {
         var frames: [CVPixelBuffer] = []
         
         let asset = AVAsset(url: url)
@@ -306,7 +306,7 @@ class VideoHandler {
         textureDescriptor.width = sourceWidth
         textureDescriptor.height = sourceHeight
         textureDescriptor.pixelFormat = .r32Float
-        textureDescriptor.usage = [.shaderWrite]
+        textureDescriptor.usage = [.shaderWrite, .shaderRead]
         textureDescriptor.storageMode = .shared
         textureDescriptor.sampleCount = 1
         
@@ -319,17 +319,10 @@ class VideoHandler {
         
         let commandQueue = device.makeCommandQueue()!
         
-        let sharedCaptueManager = MTLCaptureManager.shared()
-        let myScope = sharedCaptueManager.makeCaptureScope(commandQueue: commandQueue)
-        myScope.label = "Debug Depth Decoding"
-        sharedCaptueManager.defaultCaptureScope = myScope
-        myScope.begin()
-        
-        let back: [CVPixelBuffer] = frames.map{ frame in
+        let back: [MTLTexture] = frames.map{ frame in
             let frameTex = frame.toCVMetalTexture(textureCache: cache, pixelFormat: .bgra8Unorm)!
             let outTex = device.makeTexture(descriptor: textureDescriptor)
             //            renderPassDescriptor.colorAttachments[0].texture = outTex
-            
             
             guard let commandBuffer = commandQueue.makeCommandBuffer(),
                   let encoder = commandBuffer.makeComputeCommandEncoder() else {
@@ -342,29 +335,27 @@ class VideoHandler {
             encoder.dispatchThreadgroups(numThreadgroups, threadsPerThreadgroup: threadsPerThreadgroup)
             encoder.endEncoding()
             
-            var buffer: CVPixelBuffer?
-            CVPixelBufferCreate(kCFAllocatorDefault, sourceWidth, sourceHeight, kCVPixelFormatType_DepthFloat32, [kCVPixelBufferMetalCompatibilityKey: true] as CFDictionary, &buffer)
-            guard let pixelBuffer = buffer else {
-                fatalError("Could not create CVPixelBuffer for depth video.")
-            }
+//            var buffer: CVPixelBuffer?
+//            CVPixelBufferCreate(kCFAllocatorDefault, sourceWidth, sourceHeight, kCVPixelFormatType_DepthFloat32, [kCVPixelBufferMetalCompatibilityKey: true] as CFDictionary, &buffer)
+//            guard let pixelBuffer = buffer else {
+//                fatalError("Could not create CVPixelBuffer for depth video.")
+//            }
             
-            commandBuffer.addCompletedHandler{ commandBuffer in
-                CVPixelBufferLockBaseAddress(pixelBuffer, [])
-                let data = CVPixelBufferGetBaseAddress(pixelBuffer)
-                let bpr = CVPixelBufferGetBytesPerRow(pixelBuffer)
-                let region = MTLRegionMake2D(0, 0, outTex!.width, outTex!.height)
-                outTex!.getBytes(data!, bytesPerRow: bpr, from: region, mipmapLevel: 0)
-                
-                CVPixelBufferUnlockBaseAddress(buffer!, [])
-            }
+//            commandBuffer.addCompletedHandler{ commandBuffer in
+//                CVPixelBufferLockBaseAddress(pixelBuffer, [])
+//                let data = CVPixelBufferGetBaseAddress(pixelBuffer)
+//                let bpr = CVPixelBufferGetBytesPerRow(pixelBuffer)
+//                let region = MTLRegionMake2D(0, 0, outTex!.width, outTex!.height)
+//                outTex!.getBytes(data!, bytesPerRow: bpr, from: region, mipmapLevel: 0)
+//
+//                CVPixelBufferUnlockBaseAddress(buffer!, [])
+//            }
             
             commandBuffer.commit()
             commandBuffer.waitUntilCompleted()
             
-            return buffer!
+            return outTex!
         }
-        
-        myScope.end()
         
         return back
     }
