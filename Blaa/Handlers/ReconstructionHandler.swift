@@ -65,17 +65,17 @@ class ReconstructionHandler {
             pcd.colors = o3d.utility.Vector3dVector(np.array(pcdColors))
             
             pcd.orient_normals_consistent_tangent_plane(100)
-            pcd = pcd.remove_statistical_outlier(nb_neighbors: 20, std_ratio: 2.0)[0]
+            pcd = pcd.remove_radius_outlier(nb_points: 16, radius: 0.0075)[0]
             
             let meshbb = o3d.geometry.AxisAlignedBoundingBox.create_from_points(pcd.points)
             pcd = pcd.voxel_down_sample(voxel_size: 0.0025)
             
-            let result = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth: 9, scale: 1.5)
+            let result = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth: 7, scale: 1.5)
             var pyMesh = result[0]
             
 //            Filter by density function
             let densities = result[1]
-            let quantile = np.quantile(densities, 0.2)
+            let quantile = np.quantile(densities, 0.3)
             let mask = np.less(densities, quantile)
             pyMesh.remove_vertices_by_mask(mask)
             
@@ -85,14 +85,10 @@ class ReconstructionHandler {
             let triClusters = np.asarray(clustering[0])
             let clusterVertCounts = np.asarray(clustering[1])
             let clusterMask = ma.masked_greater(clusterVertCounts[triClusters], 100)
-//            var clusterMask = [Bool]()
-//            for element in triClusters {
-//                clusterMask.append( Int(clusterVertCounts[Int(element)!])! > 100 )
-//            }
             pyMesh.remove_triangles_by_mask(clusterMask)
             
 //            smooth mesh
-            pyMesh = pyMesh.filter_smooth_taubin(number_of_iterations: 3)
+            pyMesh = pyMesh.filter_smooth_taubin(number_of_iterations: 8)
             pyMesh.orient_triangles()
             pyMesh.compute_triangle_normals()
             pyMesh.compute_vertex_normals()
