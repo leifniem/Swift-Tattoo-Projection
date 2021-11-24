@@ -26,10 +26,6 @@ class UVMapBuilder {
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.colorAttachments[0].pixelFormat = texture.pixelFormat
         pipelineDescriptor.depthAttachmentPixelFormat = .invalid
-//        pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
-//        pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
-//        pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
-//        pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
         pipelineDescriptor.vertexDescriptor = vertexDescriptor
         let library = device.makeDefaultLibrary()
         pipelineDescriptor.vertexFunction = library?.makeFunction(name: "UVMapVert")
